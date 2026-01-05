@@ -692,7 +692,7 @@ public class DanmakuUIHelper {
                     searchInput.setLayoutParams(inputParams);
 
                     // 倒序按钮
-                    Button reverseBtn = createStyledButton(activity, isReversed ? "升序" : "倒序", isReversed ? TERTIARY_LIGHT : ACCENT_COLOR);
+                    Button reverseBtn = createStyledButton(activity, isReversed ? "倒序" : "升序", isReversed ? ACCENT_COLOR : TERTIARY_LIGHT);
                     reverseBtn.setLayoutParams(new LinearLayout.LayoutParams(
                             dpToPx(activity, 50), dpToPx(activity, 44)));
                     reverseBtn.setTextSize(16);
@@ -747,8 +747,8 @@ public class DanmakuUIHelper {
                         @Override
                         public void onClick(View v) {
                             isReversed = !isReversed;
-                            reverseBtn.setBackground(createRoundedBackgroundDrawable(isReversed ? TERTIARY_LIGHT : ACCENT_COLOR));
-                            reverseBtn.setText(isReversed ? "升序" : "倒序");
+                            reverseBtn.setBackground(createRoundedBackgroundDrawable(isReversed ? ACCENT_COLOR : TERTIARY_LIGHT));
+                            reverseBtn.setText(isReversed ? "倒序" : "升序");
 
                             // 重新构建分组并显示
                             showResultsForTab(resultContainer, currentItems, activity, dialog);
