@@ -22,8 +22,7 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false  // 临时禁用混淆
-            shrinkResources false
+            minifyEnabled true
             proguardFiles 'proguard-rules.pro'
             proguardDictionaries {
                 dictionaryNames = ["build/class-dictionary", "build/package-dictionary", "build/obfuscation-dictionary"]
