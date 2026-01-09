@@ -33,6 +33,8 @@ public class Init {
     private volatile Socket healthSocket;
     private volatile boolean isRunning = false;
     private volatile Thread healthCheckThread;
+    private volatile boolean isFirstHealthCheck; // 新增：用于标记是否是首次健康检查
+
     private static final int HEALTH_PORT = 5575;
     private static final String HEALTH_PATH = "/health";
     private static final int HEALTH_TIMEOUT = 3000; // 3秒超时
@@ -73,85 +75,62 @@ public class Init {
         SpiderDebug.log("自定義爬蟲代碼載入成功！");
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-            get().handler.post(new Runnable() {
-                @Override
-                public void run() {
-                    Toast.makeText(context, "安卓版本过低，无法启动goProxy", Toast.LENGTH_SHORT).show();
-                }
-            });
-
+            get().handler.post(() -> Toast.makeText(context, "安卓版本过低，无法启动goProxy", Toast.LENGTH_SHORT).show());
             return;
         }
 
         List<String> abs = Arrays.asList(Build.SUPPORTED_ABIS);
-        execute(new Runnable() {
-            @Override
-            public void run() {
+        execute(() -> {
+            try {
+                String goProxy = abs.contains("arm64-v8a") ? "goProxy-arm64" : "goProxy-arm";
+                File file = new File(context.getCacheDir(), goProxy);
+
+                Process exec = Runtime.getRuntime().exec("/system/bin/sh");
+                try (DataOutputStream dos = new DataOutputStream(exec.getOutputStream())) {
+                    if (!file.exists()) {
+                        if (!file.createNewFile()) throw new Exception("创建文件失败 " + file);
+                        try (FileOutputStream fos = new FileOutputStream(file);
+                             InputStream is = Objects.requireNonNull(get().getClass().getClassLoader()).getResourceAsStream("assets/" + goProxy)) {
+                            byte[] buffer = new byte[8192];
+                            int read;
+                            while ((read = is.read(buffer)) != -1) fos.write(buffer, 0, read);
+                        }
+                        if (!file.setExecutable(true)) throw new Exception(goProxy + " setExecutable is false");
+                        dos.writeBytes("chmod 777 " + file.getAbsolutePath() + "\n");
+                        dos.flush();
+                    }
+
+                    SpiderDebug.log("启动 " + file);
+                    dos.writeBytes("kill $(ps -ef | grep '" + goProxy + "' | grep -v grep | awk '{print $2}')\n");
+                    dos.flush();
+                    dos.writeBytes("nohup " + file.getAbsolutePath() + "\n");
+                    dos.flush();
+                    dos.writeBytes("exit\n");
+                    dos.flush();
+
+                    // **优化点**: 创建一个Runnable，在首次健康检查成功后显示Toast
+                    Runnable onFirstSuccess = () -> Toast.makeText(context, "加载：" + goProxy + "成功", Toast.LENGTH_SHORT).show();
+                    
+                    // 启动心跳检查，并传入成功回调
+                    get().startHealthCheck(context, onFirstSuccess);
+                }
+
+                try (InputStream is = exec.getInputStream()) {
+                    log(is, "input");
+                }
+                try (InputStream is = exec.getErrorStream()) {
+                    log(is, "err");
+                }
+                SpiderDebug.log("exe ret " + exec.waitFor());
+            } catch (Exception ex) {
+                SpiderDebug.log("启动 goProxy异常：" + ex.getMessage());
+                get().handler.post(() -> Toast.makeText(context, abs + "启动 goProxy异常：" + ex.getMessage(), Toast.LENGTH_SHORT).show());
+                // 即使启动失败，也要尝试启动健康检查，以便检测服务状态并自动重启
                 try {
-                    //x86_64, arm64-v8a, x86, armeabi-v7a, armeabi
-                    String goProxy = abs.contains("arm64-v8a") ? "goProxy-arm64" : "goProxy-arm";
-//                String goProxy = abs.contains("arm64-v8a") ? "Omnibox-arm64" : "Omnibox-arm";
-                    File file = new File(context.getCacheDir(), goProxy);
-
-                    Process exec = Runtime.getRuntime().exec("/system/bin/sh");
-                    try (DataOutputStream dos = new DataOutputStream(exec.getOutputStream())) {
-                        if (!file.exists()) {
-                            if (!file.createNewFile()) {
-                                throw new Exception("创建文件失败 " + file);
-                            }
-
-                            try (FileOutputStream fos = new FileOutputStream(file)) {
-                                try (InputStream is = Objects.requireNonNull(get().getClass().getClassLoader()).getResourceAsStream("assets/" + goProxy)) {
-                                    int read;
-                                    byte[] buffer = new byte[8192];
-                                    while ((read = is.read(buffer)) != -1) fos.write(buffer, 0, read);
-                                }
-                            }
-
-                            if (!file.setExecutable(true)) {
-                                throw new Exception(goProxy + " setExecutable is false");
-                            }
-
-                            dos.writeBytes("chmod 777 " + file.getAbsolutePath() + "\n");
-                            dos.flush();
-                        }
-
-                        SpiderDebug.log("启动 " + file);
-                        dos.writeBytes("kill $(ps -ef | grep '" + goProxy + "' | grep -v grep | awk '{print $2}')\n");
-                        dos.flush();
-
-                        dos.writeBytes("nohup " + file.getAbsolutePath() + "\n");
-                        dos.flush();
-
-                        dos.writeBytes("exit\n");
-                        dos.flush();
-
-                        get().handler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                Toast.makeText(context, "加载：" + goProxy + "成功", Toast.LENGTH_SHORT).show();
-                            }
-                        });
-
-                        // 启动go代理监控检查
-                        get().startHealthCheck(context);
-                    }
-
-                    try (InputStream is = exec.getInputStream()) {
-                        log(is, "input");
-                    }
-                    try (InputStream is = exec.getErrorStream()) {
-                        log(is, "err");
-                    }
-                    SpiderDebug.log("exe ret " + exec.waitFor());
-                } catch (Exception ex) {
-                    SpiderDebug.log("启动 goProxy异常：" + ex.getMessage());
-                    get().handler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(context, abs + "启动 goProxy异常：" + ex.getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                    });
+                    // 启动失败时，不传递成功回调
+                    get().startHealthCheck(context, null);
+                } catch (Exception healthEx) {
+                    SpiderDebug.log("Failed to start health check: " + healthEx.getMessage());
                 }
             }
         });
@@ -160,65 +139,63 @@ public class Init {
     /**
      * 启动健康检查线程
      * @param context
+     * @param onFirstSuccess 首次健康检查成功时的回调任务
      */
-    private void startHealthCheck(Context context) {
-        // 避免重复启动
-        if (isRunning) {
-            return;
+    private void startHealthCheck(Context context, Runnable onFirstSuccess) {
+        if (isRunning && healthCheckThread != null && healthCheckThread.isAlive()) {
+            stopHealthCheck();
         }
         
         isRunning = true;
+        isFirstHealthCheck = true; // 重置首次检查标记
 
-        // 创建长连接心跳检查线程
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while (isRunning) {
-                    try {
-                        // 使用更长的间隔来避免过于频繁
-                        Thread.sleep(HEALTH_INTERVAL); // 每1秒执行一次健康检查
-                    } catch (InterruptedException ie) {
-                        SpiderDebug.log("Health check thread interrupted");
-                        break; // 线程被中断则退出循环
+        healthCheckThread = new Thread(() -> {
+            while (isRunning) {
+                boolean isHealthy = false;
+                try {
+                    JsonObject json = new Gson().fromJson(OkHttp.string("http://127.0.0.1:5575/health"), JsonObject.class);
+                    if (json != null && json.has("status") && json.get("status").getAsString().equals("healthy")) {
+                        SpiderDebug.log("Health check passed");
+                        isHealthy = true;
+                    } else {
+                        SpiderDebug.log("Health check status not healthy");
                     }
-
-                    boolean isHealthy = false;
-                    try {
-                        JsonObject json = new Gson().fromJson(OkHttp.string("http://127.0.0.1:5575/health"), JsonObject.class);
-                        if (json.get("status").getAsString().equals("healthy")) {
-                            SpiderDebug.log("Health check passed");
-                            isHealthy = true;
-                        } else {
-                            SpiderDebug.log("Health check status not healthy");
-                        }
-                    } catch (Exception e) {
-                        SpiderDebug.log("Error during health check: " + e.getMessage());
-                    }
-
-                    if (!isHealthy) {
-                        closeHealthSocket();
-                        // 连接失败时重启Go代理
-                        try {
-                            initGoProxy(context);
-                            SpiderDebug.log("Health check failed, restarting goProxy");
-                            // 等待一段时间让新服务启动
-                            Thread.sleep(3000);
-                        } catch (Exception restartEx) {
-                            SpiderDebug.log("Failed to restart goProxy: " + restartEx.getMessage());
-                        }
-                    }
+                } catch (Exception e) {
+                    SpiderDebug.log("Error during health check: " + e.getMessage());
                 }
 
-                // 清理资源
-                closeHealthSocket();
-                SpiderDebug.log("Health check thread stopped");
+                if (isHealthy) {
+                    // **优化点**: 如果是首次检查成功，并且有回调任务，则执行它
+                    if (isFirstHealthCheck && onFirstSuccess != null) {
+                        handler.post(onFirstSuccess);
+                        isFirstHealthCheck = false; // 不再是首次
+                    }
+                } else {
+                    closeHealthSocket();
+                    try {
+                        initGoProxy(context);
+                        SpiderDebug.log("Health check failed, restarting goProxy");
+                        Thread.sleep(3000);
+                    } catch (Exception restartEx) {
+                        SpiderDebug.log("Failed to restart goProxy: " + restartEx.getMessage());
+                    }
+                }
+                
+                try {
+                    Thread.sleep(HEALTH_INTERVAL);
+                } catch (InterruptedException ie) {
+                    SpiderDebug.log("Health check thread interrupted");
+                    break;
+                }
             }
-        }).start();
+            closeHealthSocket();
+            SpiderDebug.log("Health check thread stopped");
+        });
 
+        healthCheckThread.start();
         SpiderDebug.log("Health check thread started");
     }
 
-    // 添加关闭健康检查连接的方法
     private void closeHealthSocket() {
         try {
             if (healthSocket != null && !healthSocket.isClosed()) {
@@ -231,7 +208,6 @@ public class Init {
         }
     }
 
-    // 添加停止心跳检查的方法
     public static void stopHealthCheck() {
         Init instance = get();
         instance.isRunning = false;
@@ -247,13 +223,10 @@ public class Init {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
             return;
         }
-
-        try (InputStreamReader isr = new InputStreamReader(stream, "UTF-8")) {
-            try (BufferedReader br = new BufferedReader(isr)) {
-                String readLine;
-                while ((readLine = br.readLine()) != null) {
-                    SpiderDebug.log(type + ": " + readLine);
-                }
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(stream, "UTF-8"))) {
+            String readLine;
+            while ((readLine = br.readLine()) != null) {
+                SpiderDebug.log(type + ": " + readLine);
             }
         }
     }
@@ -295,9 +268,7 @@ public class Init {
             if (!pausedField.getBoolean(activityRecord)) {
                 Field activityField = activityRecordClass.getDeclaredField("activity");
                 activityField.setAccessible(true);
-                Activity activity = (Activity) activityField.get(activityRecord);
-                SpiderDebug.log(activity.getComponentName().getClassName());
-                return activity;
+                return (Activity) activityField.get(activityRecord);
             }
         }
         return null;

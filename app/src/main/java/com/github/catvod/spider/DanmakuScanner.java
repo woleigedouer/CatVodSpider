@@ -34,7 +34,7 @@ public class DanmakuScanner {
     // 视频播放状态
     private static boolean isVideoPlaying = false;
     private static long videoPlayStartTime = 0;
-    private static final long MIN_PLAY_DURATION_BEFORE_PUSH = 2000; // 至少播放2秒再推送
+    private static final long MIN_PLAY_DURATION_BEFORE_PUSH = 0; // 至少播放0秒再推送
     private static final long FORCE_PUSH_TIMEOUT = 10000; // 10秒后强制推送
     private static final long MAX_WAIT_FOR_PLAYBACK = 15000; // 最多等待15秒
 
@@ -1005,11 +1005,11 @@ public class DanmakuScanner {
                     String pushKey = generateSignature(episodeInfo);
 
                     // 检查是否最近已经推送过相同的弹幕
-                    Long lastPush = lastPushTime.get(nextDanmakuItem.getDanmakuUrl());
-                    if (lastPush != null && (currentTime - lastPush) < 60000) {
-                        DanmakuSpider.log("⚠️ 最近1分钟内已推送过相同弹幕，跳过");
-                        return;
-                    }
+//                    Long lastPush = lastPushTime.get(nextDanmakuItem.getDanmakuUrl());
+//                    if (lastPush != null && (currentTime - lastPush) < 60000) {
+//                        DanmakuSpider.log("⚠️ 最近1分钟内已推送过相同弹幕，跳过");
+//                        return;
+//                    }
 
                     // 延迟推送，等待视频播放
                     scheduleDelayedPush(nextDanmakuItem, activity, episodeInfo.getEpisodeName(), pushKey);
@@ -1387,7 +1387,7 @@ public class DanmakuScanner {
 
     private static void startAutoSearch(EpisodeInfo episodeInfo, final Activity activity) {
         // 检查自动推送状态
-        if (!DanmakuSpider.autoPushEnabled && !DanmakuSpider.hasAutoSearched) {
+        if (!DanmakuSpider.autoPushEnabled) {
             DanmakuSpider.log("❌ 自动推送已关闭，跳过自动搜索");
             return;
         }
