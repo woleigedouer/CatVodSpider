@@ -1401,8 +1401,7 @@ public class DanmakuScanner {
                     activity.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            DanmakuSpider.safeShowToast(activity,
-                                    "Leo弹幕获取失败，请手动搜索");
+//                            DanmakuSpider.safeShowToast(activity,"Leo弹幕获取失败，请手动搜索");
                         }
                     });
                 }

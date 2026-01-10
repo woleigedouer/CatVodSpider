@@ -262,7 +262,7 @@ public class LeoDanmakuService {
                 if (!TextUtils.isEmpty(episodeInfo.getEpisodeNum())) {
                     sb.append(" ").append(episodeInfo.getEpisodeNum());
                 }
-                DanmakuSpider.safeShowToast(activity, sb.toString());
+//                DanmakuSpider.safeShowToast(activity, sb.toString());
                 DanmakuSpider.log(sb.toString());
             }
         });
