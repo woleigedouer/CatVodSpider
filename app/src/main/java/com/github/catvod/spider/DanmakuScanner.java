@@ -1235,7 +1235,19 @@ public class DanmakuScanner {
                 btn.setOnLongClickListener(new View.OnLongClickListener() {
                     @Override
                     public boolean onLongClick(View v) {
-                        DanmakuUIHelper.showQRCodeDialog((Activity) parent.getContext(), "http://" + NetworkUtils.getLocalIpAddress() + ":9810");
+                        if (parent.getContext() instanceof Activity) {
+                            Activity activity = (Activity) parent.getContext();
+                            // 添加防抖动检查
+                            long currentTime = System.currentTimeMillis();
+                            if (currentTime - DanmakuSpider.lastButtonClickTime < 500) {
+                                DanmakuSpider.log("[按钮长按] 防抖动：操作过于频繁");
+                                return true;
+                            }
+                            DanmakuSpider.lastButtonClickTime = currentTime;
+
+                            DanmakuSpider.log("[按钮长按] 打开搜索对话框");
+                            DanmakuUIHelper.showSearchDialog(activity, lastEpisodeInfo.getEpisodeName());
+                        }
                         return true;
                     }
                 });
