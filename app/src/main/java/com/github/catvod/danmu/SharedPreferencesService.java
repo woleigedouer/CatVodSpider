@@ -46,7 +46,7 @@ public class SharedPreferencesService {
 
             // 如果缓存值为空字符串（表示已清空），返回initialKeyword
             if (TextUtils.isEmpty(cachedKeyword)) {
-                DanmakuSpider.log("读取搜索缓存为空，返回初始值: " + initialKeyword);
+//                DanmakuSpider.log("读取搜索缓存为空，返回初始值: " + initialKeyword);
                 return initialKeyword;
             }
 
