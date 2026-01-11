@@ -35,6 +35,10 @@ public class SharedPreferencesService {
      */
     public static String getSearchKeywordCache(Context context, String initialKeyword) {
         try {
+            if (TextUtils.isEmpty(initialKeyword)) {
+                return "";
+            }
+
             android.content.SharedPreferences prefs = context.getSharedPreferences("danmaku_search_cache", Context.MODE_PRIVATE);
             String cacheKey = "search_keyword_" + initialKeyword;
             // 获取缓存值，如果不存在则使用initialKeyword作为默认值
@@ -46,7 +50,9 @@ public class SharedPreferencesService {
                 return initialKeyword;
             }
 
-            DanmakuSpider.log("读取搜索缓存: " + initialKeyword + " -> " + cachedKeyword);
+            if (!initialKeyword.equals(cachedKeyword)) {
+                DanmakuSpider.log("读取搜索缓存: " + initialKeyword + " -> " + cachedKeyword);
+            }
             return cachedKeyword;
         } catch (Exception e) {
             DanmakuSpider.log("读取搜索缓存失败: " + e.getMessage());

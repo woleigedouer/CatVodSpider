@@ -8,23 +8,12 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.widget.Toast;
-import com.github.catvod.crawler.SpiderDebug;
-import com.github.catvod.net.OkHttp;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 
 import java.io.*;
 import java.lang.reflect.Field;
-import java.net.Socket;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import static com.github.catvod.spider.GoProxySpider.initGoProxy;
 
 public class Init {
 

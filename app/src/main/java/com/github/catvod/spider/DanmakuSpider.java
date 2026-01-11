@@ -221,12 +221,12 @@ public class DanmakuSpider extends Spider {
 
         // 记录视频检测时间
         lastVideoDetectedTime = System.currentTimeMillis();
-        log("✅ 更新视频检测时间: " + lastVideoDetectedTime);
+//        log("✅ 更新视频检测时间: " + lastVideoDetectedTime);
 
         // 设置已搜索过，这样换集时就会尝试递增
         if (lastDanmakuId > 0) {
             hasAutoSearched = true;
-            log("✅ 设置 hasAutoSearched = true (ID: " + lastDanmakuId + ")");
+//            log("✅ 设置 hasAutoSearched = true (ID: " + lastDanmakuId + ")");
         }
     }
 
@@ -251,7 +251,26 @@ public class DanmakuSpider extends Spider {
     // 日志记录
     public static void log(String msg) {
         String time = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date());
-        logBuffer.add(time + " " + Thread.currentThread().getName() + " " + msg);
+        String newLogEntry = time + " " + Thread.currentThread().getName() + " " + msg;
+        
+        // 检查最后一条日志是否与当前消息相同，如果相同则不添加
+        if (!logBuffer.isEmpty()) {
+            String lastLogEntry = logBuffer.get(logBuffer.size() - 1);
+            // 提取最后一条日志的消息部分进行比较（去掉时间和线程名）
+            // 查找第一个和第二个空格的位置
+            int firstSpaceIndex = lastLogEntry.indexOf(' ');
+            if (firstSpaceIndex != -1) {
+                int secondSpaceIndex = lastLogEntry.indexOf(' ', firstSpaceIndex + 1);
+                if (secondSpaceIndex != -1) {
+                    String lastMsg = lastLogEntry.substring(secondSpaceIndex + 1);
+                    if (lastMsg.equals(msg)) {
+                        return; // 如果消息相同，则直接返回，不添加到日志缓冲区
+                    }
+                }
+            }
+        }
+        
+        logBuffer.add(newLogEntry);
         if (logBuffer.size() > MAX_LOG_SIZE) {
             logBuffer.remove(0);
         }
