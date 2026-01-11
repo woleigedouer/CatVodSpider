@@ -3,6 +3,8 @@ package com.github.catvod.spider;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.os.Handler;
 import android.os.Looper;
@@ -12,13 +14,17 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import com.github.catvod.bean.danmu.DanmakuItem;
 import com.github.catvod.danmu.SharedPreferencesService;
+import com.github.catvod.net.OkHttp;
 
 import java.io.File;
+import java.io.InputStream;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -557,7 +563,7 @@ public class DanmakuUIHelper {
                     titleLayout.setPadding(dpToPx(activity, 20), dpToPx(activity, 16), dpToPx(activity, 20), dpToPx(activity, 16));
 
                     TextView titleText = new TextView(activity);
-                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-11 17:18");
+                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-11 20:41");
                     titleText.setTextSize(20);
                     titleText.setTextColor(Color.WHITE);
                     titleText.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -1300,5 +1306,44 @@ public class DanmakuUIHelper {
         });
 
         return resultItem;
+    }
+
+    public static void showQRCodeDialog(Activity activity, String url) {
+        activity.runOnUiThread(() -> {
+            try {
+                AlertDialog.Builder builder = new AlertDialog.Builder(activity);
+                LinearLayout mainLayout = new LinearLayout(activity);
+                mainLayout.setOrientation(LinearLayout.VERTICAL);
+                mainLayout.setGravity(Gravity.CENTER);
+                mainLayout.setPadding(dpToPx(activity, 20), dpToPx(activity, 20), dpToPx(activity, 20), dpToPx(activity, 20));
+
+                ImageView qrCodeView = new ImageView(activity);
+                mainLayout.addView(qrCodeView);
+
+                TextView urlView = new TextView(activity);
+                urlView.setText(url);
+                urlView.setGravity(Gravity.CENTER);
+                urlView.setPadding(0, dpToPx(activity, 10), 0, 0);
+                mainLayout.addView(urlView);
+
+                builder.setView(mainLayout);
+                AlertDialog dialog = builder.create();
+
+                new Thread(() -> {
+                    try {
+                        String qrCodeUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=" + URLEncoder.encode(url, "UTF-8");
+                        InputStream in = new java.net.URL(qrCodeUrl).openStream();
+                        Bitmap bitmap = BitmapFactory.decodeStream(in);
+                        activity.runOnUiThread(() -> qrCodeView.setImageBitmap(bitmap));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }).start();
+
+                safeShowDialog(activity, dialog);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
     }
 }

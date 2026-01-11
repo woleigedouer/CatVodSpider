@@ -14,6 +14,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -25,6 +26,7 @@ public class DanmakuSpider extends Spider {
     public static String apiUrl = "";
     private static boolean initialized = false;
     private static File sCacheDir = null;
+    private static WebServer webServer;
 
     // 日志
     private static final ArrayList<String> logBuffer = new ArrayList<>();
@@ -101,6 +103,13 @@ public class DanmakuSpider extends Spider {
         DanmakuConfigManager.saveConfig(context, config);
 
         if (initialized) return;
+
+        // 启动WebServer
+        try {
+            webServer = new WebServer(9810);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         // 加载自动推送状态
         loadAutoPushState(context);

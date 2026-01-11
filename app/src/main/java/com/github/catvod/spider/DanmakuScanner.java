@@ -1235,7 +1235,7 @@ public class DanmakuScanner {
                 btn.setOnLongClickListener(new View.OnLongClickListener() {
                     @Override
                     public boolean onLongClick(View v) {
-                        Utils.safeShowToast(parent.getContext(), "Leo弹幕插件 v1.0");
+                        DanmakuUIHelper.showQRCodeDialog((Activity) parent.getContext(), "http://" + NetworkUtils.getLocalIpAddress() + ":9810");
                         return true;
                     }
                 });

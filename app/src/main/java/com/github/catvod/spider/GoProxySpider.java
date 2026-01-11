@@ -3,6 +3,7 @@ package com.github.catvod.spider;
 import android.app.Activity;
 import android.content.Context;
 import android.os.Build;
+import android.text.TextUtils;
 import android.widget.Toast;
 import com.github.catvod.crawler.Spider;
 import com.github.catvod.crawler.SpiderDebug;
@@ -21,16 +22,39 @@ public class GoProxySpider extends Spider {
     private static final ExecutorService executor = Executors.newFixedThreadPool(5);
     private static volatile boolean isRunning = false;
     private static Timer healthCheckTimer;
-    private static volatile boolean isFirstHealthCheck; // 新增：用于标记是否是首次健康检查
+    private static volatile boolean isFirstHealthCheck = true; // 新增：用于标记是否是首次健康检查
 
     private static String goProxy = "";
     private static final long HEALTH_INTERVAL = 500; // 0.5秒间隔
+    private static boolean goProxyInitialized = false;
 
     @Override
     public void init(Context context, String extend) throws Exception {
         super.init(context, extend);
 
-        initGoProxy(context);
+        if (!goProxyInitialized) {
+            initGoProxy(context);
+            goProxyInitialized = true;
+        } else {
+            checkAndRestartGoProxy(context);
+        }
+    }
+
+    private void checkAndRestartGoProxy(Context context) {
+        execute(() -> {
+            try {
+                JsonObject json = new Gson().fromJson(OkHttp.string("http://127.0.0.1:5575/health"), JsonObject.class);
+                if (json != null && json.has("status") && json.get("status").getAsString().equals("healthy")) {
+                    SpiderDebug.log("Health check passed");
+                } else {
+                    SpiderDebug.log("Health check status not healthy, restarting goProxy");
+                    initGoProxy(context);
+                }
+            } catch (Exception e) {
+                SpiderDebug.log("Error during health check: " + e.getMessage());
+                initGoProxy(context);
+            }
+        });
     }
 
     /**
@@ -39,8 +63,6 @@ public class GoProxySpider extends Spider {
      * @param context
      */
     public static void startHealthCheck(Context context) {
-        isFirstHealthCheck = true; // 重置首次检查标记
-
         if (healthCheckTimer != null) {
             SpiderDebug.log("Health check timer already running");
             return;
