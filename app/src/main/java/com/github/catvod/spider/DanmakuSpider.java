@@ -3,11 +3,9 @@ package com.github.catvod.spider;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
-import android.widget.Toast;
 
 import com.github.catvod.bean.danmu.DanmakuItem;
 import com.github.catvod.crawler.Spider;
@@ -16,26 +14,18 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.util.*;
-import java.util.concurrent.ConcurrentMap;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class DanmakuSpider extends Spider {
 
     public static String apiUrl = "";
     private static boolean initialized = false;
     private static File sCacheDir = null;
-    
-    public static String lastAutoDanmakuUrl = "";  // 上次自动推送的弹幕URL
-    public static String lastManualDanmakuUrl = ""; // 上次手动选择的弹幕URL
-    public static String lastDanmakuUrl = ""; // 上次弹幕URL
-    public static ConcurrentMap<Integer, DanmakuItem> lastDanmakuItemMap = null;
-    public static int lastDanmakuId = -1;          // 上次的弹幕ID
-    public static boolean hasAutoSearched = false; // 是否已自动搜索过
-    public static String lastProcessedTitle = "";  // 上次处理的标题
-    // 添加：视频识别相关
-    public static String currentVideoSignature = "";  // 当前视频的唯一标识（基于标题提取）
-    public static long lastVideoDetectedTime = 0;     // 上次检测到视频的时间
-    
+
     // 日志
     private static final ArrayList<String> logBuffer = new ArrayList<>();
     private static final int MAX_LOG_SIZE = 1000;
@@ -116,12 +106,12 @@ public class DanmakuSpider extends Spider {
         loadAutoPushState(context);
 
         // 显示启动提示
-        Activity act = getTopActivity();
+        Activity act = Utils.getTopActivity();
         if (act != null) {
-            safeRunOnUiThread(act, new Runnable() {
+            Utils.safeRunOnUiThread(act, new Runnable() {
                 @Override
                 public void run() {
-                    safeShowToast(act, "Leo弹幕加载成功");
+                    Utils.safeShowToast(act, "Leo弹幕加载成功");
                 }
             });
         }
@@ -130,129 +120,26 @@ public class DanmakuSpider extends Spider {
         initialized = true;
     }
 
-
-    // 获取Top Activity
-    public static Activity getTopActivity() {
-        try {
-            Class<?> activityThreadClass = Class.forName("android.app.ActivityThread");
-            Object activityThread = activityThreadClass.getMethod("currentActivityThread").invoke(null);
-            java.lang.reflect.Field activitiesField = activityThreadClass.getDeclaredField("mActivities");
-            activitiesField.setAccessible(true);
-            Map<Object, Object> activities;
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
-                activities = (HashMap<Object, Object>) activitiesField.get(activityThread);
-            } else {
-                activities = (android.util.ArrayMap<Object, Object>) activitiesField.get(activityThread);
-            }
-            for (Object activityRecord : activities.values()) {
-                Class<?> activityRecordClass = activityRecord.getClass();
-                java.lang.reflect.Field pausedField = activityRecordClass.getDeclaredField("paused");
-                pausedField.setAccessible(true);
-                if (!pausedField.getBoolean(activityRecord)) {
-                    java.lang.reflect.Field activityField = activityRecordClass.getDeclaredField("activity");
-                    activityField.setAccessible(true);
-                    return (Activity) activityField.get(activityRecord);
-                }
-            }
-        } catch (Exception e) {
-            log("获取TopActivity失败: " + e.getMessage());
-        }
-        return null;
-    }
-
-    // 安全显示Toast
-    public static void safeShowToast(final Context context, final String message) {
-        if (context instanceof Activity) {
-            safeShowToast2((Activity) context, message);
-        } else {
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                @Override
-                public void run() {
-                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
-                }
-            });
-        }
-    }
-
-    public static void safeShowToast2(Activity activity, String message) {
-        if (activity != null && !activity.isFinishing()) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-                if (activity.isDestroyed()) return;
-            }
-            safeRunOnUiThread(activity, new Runnable() {
-                @Override
-                public void run() {
-                    if (activity != null && !activity.isFinishing()) {
-                        Toast.makeText(activity, message, Toast.LENGTH_SHORT).show();
-                    }
-                }
-            });
-        }
-    }
-
-
-    // 安全运行UI线程
-    public static void safeRunOnUiThread(Activity activity, Runnable runnable) {
-        if (activity != null && !activity.isFinishing()) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-                if (activity.isDestroyed()) return;
-            }
-            activity.runOnUiThread(runnable);
-        }
-    }
-
     // 重置自动搜索状态
     public static void resetAutoSearch() {
-        hasAutoSearched = false;
-        lastProcessedTitle = "";
+        DanmakuManager.resetAutoSearch();
     }
 
     // 记录弹幕URL
     public static void recordDanmakuUrl(DanmakuItem danmakuItem, boolean isAuto) {
-        if (isAuto) {
-            lastAutoDanmakuUrl = danmakuItem.getDanmakuUrl();
-            log("记录自动弹幕URL: " + danmakuItem.getDanmakuUrl());
-        } else {
-            lastManualDanmakuUrl = danmakuItem.getDanmakuUrl();
-            log("记录手动弹幕URL: " + danmakuItem.getDanmakuUrl());
-        }
-        lastDanmakuUrl = danmakuItem.getDanmakuUrl();
-        lastDanmakuId = danmakuItem.getEpId();
-
-        // 记录视频检测时间
-        lastVideoDetectedTime = System.currentTimeMillis();
-//        log("✅ 更新视频检测时间: " + lastVideoDetectedTime);
-
-        // 设置已搜索过，这样换集时就会尝试递增
-        if (lastDanmakuId > 0) {
-            hasAutoSearched = true;
-//            log("✅ 设置 hasAutoSearched = true (ID: " + lastDanmakuId + ")");
-        }
+        DanmakuManager.recordDanmakuUrl(danmakuItem, isAuto);
     }
 
     // 获取下一个弹幕ID
     public static DanmakuItem getNextDanmakuItem(int currentEpisodeNum, int newEpisodeNum) {
-        int nextId = lastDanmakuId + (newEpisodeNum - currentEpisodeNum);
-        log("📝 获取下一个弹幕URL: " + lastDanmakuId + " -> " + nextId);
-
-        if (nextId <= 0) {
-            return null;
-        }
-
-        DanmakuItem nextDanmakuItem = lastDanmakuItemMap.get(nextId);
-        if (nextDanmakuItem != null) {
-            log("✅ 获取到下一个弹幕弹幕信息: " + nextDanmakuItem.toString());
-            return nextDanmakuItem;
-        }
-
-        return null;
+        return DanmakuManager.getNextDanmakuItem(currentEpisodeNum, newEpisodeNum);
     }
 
     // 日志记录
     public static void log(String msg) {
         String time = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date());
         String newLogEntry = time + " " + Thread.currentThread().getName() + " " + msg;
-        
+
         // 检查最后一条日志是否与当前消息相同，如果相同则不添加
         if (!logBuffer.isEmpty()) {
             String lastLogEntry = logBuffer.get(logBuffer.size() - 1);
@@ -269,7 +156,7 @@ public class DanmakuSpider extends Spider {
                 }
             }
         }
-        
+
         logBuffer.add(newLogEntry);
         if (logBuffer.size() > MAX_LOG_SIZE) {
             logBuffer.remove(0);
@@ -336,7 +223,6 @@ public class DanmakuSpider extends Spider {
     }
 
 
-
     @Override
     public String detailContent(List<String> ids) {
         if (ids == null || ids.isEmpty()) return "";
@@ -345,7 +231,7 @@ public class DanmakuSpider extends Spider {
         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
             @Override
             public void run() {
-                final Activity ctx = getTopActivity();
+                final Activity ctx = Utils.getTopActivity();
                 if (ctx != null && !ctx.isFinishing()) {
                     ctx.runOnUiThread(new Runnable() {
                         @Override
@@ -360,7 +246,7 @@ public class DanmakuSpider extends Spider {
 
                                     // 更新UI显示
                                     DanmakuSpider.log("自动推送状态切换: " + autoPushEnabled);
-                                    safeShowToast(ctx,
+                                    Utils.safeShowToast(ctx,
                                             autoPushEnabled ? "自动推送已开启" : "自动推送已关闭");
 
                                     // 重新加载页面以更新状态显示
@@ -372,7 +258,7 @@ public class DanmakuSpider extends Spider {
                                 }
                             } catch (Exception e) {
                                 DanmakuSpider.log("显示对话框失败: " + e.getMessage());
-                                safeShowToast(ctx,
+                                Utils.safeShowToast(ctx,
                                         "请稍后再试");
                             }
                         }

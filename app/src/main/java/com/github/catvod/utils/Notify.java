@@ -4,6 +4,7 @@ import android.text.TextUtils;
 import android.widget.Toast;
 
 import com.github.catvod.spider.Init;
+import com.github.catvod.spider.Utils;
 
 public class Notify {
 
@@ -29,6 +30,6 @@ public class Notify {
     private void makeText(String message) {
         if (TextUtils.isEmpty(message)) return;
         if (mToast != null) mToast.cancel();
-        com.github.catvod.spider.DanmakuSpider.safeShowToast(Init.context(), message);
+        Utils.safeShowToast(Init.context(), message);
     }
 }

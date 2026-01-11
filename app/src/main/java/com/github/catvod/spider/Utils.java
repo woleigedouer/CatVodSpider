@@ -1,0 +1,80 @@
+package com.github.catvod.spider;
+
+import android.app.Activity;
+import android.content.Context;
+import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.widget.Toast;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class Utils {
+
+    public static Activity getTopActivity() {
+        try {
+            Class<?> activityThreadClass = Class.forName("android.app.ActivityThread");
+            Object activityThread = activityThreadClass.getMethod("currentActivityThread").invoke(null);
+            java.lang.reflect.Field activitiesField = activityThreadClass.getDeclaredField("mActivities");
+            activitiesField.setAccessible(true);
+            Map<Object, Object> activities;
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
+                activities = (HashMap<Object, Object>) activitiesField.get(activityThread);
+            } else {
+                activities = (android.util.ArrayMap<Object, Object>) activitiesField.get(activityThread);
+            }
+            for (Object activityRecord : activities.values()) {
+                Class<?> activityRecordClass = activityRecord.getClass();
+                java.lang.reflect.Field pausedField = activityRecordClass.getDeclaredField("paused");
+                pausedField.setAccessible(true);
+                if (!pausedField.getBoolean(activityRecord)) {
+                    java.lang.reflect.Field activityField = activityRecordClass.getDeclaredField("activity");
+                    activityField.setAccessible(true);
+                    return (Activity) activityField.get(activityRecord);
+                }
+            }
+        } catch (Exception e) {
+            DanmakuSpider.log("获取TopActivity失败: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public static void safeShowToast(final Context context, final String message) {
+        if (context instanceof Activity) {
+            safeShowToast2((Activity) context, message);
+        } else {
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+    }
+
+    public static void safeShowToast2(Activity activity, String message) {
+        if (activity != null && !activity.isFinishing()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                if (activity.isDestroyed()) return;
+            }
+            safeRunOnUiThread(activity, new Runnable() {
+                @Override
+                public void run() {
+                    if (activity != null && !activity.isFinishing()) {
+                        Toast.makeText(activity, message, Toast.LENGTH_SHORT).show();
+                    }
+                }
+            });
+        }
+    }
+
+    public static void safeRunOnUiThread(Activity activity, Runnable runnable) {
+        if (activity != null && !activity.isFinishing()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                if (activity.isDestroyed()) return;
+            }
+            activity.runOnUiThread(runnable);
+        }
+    }
+}

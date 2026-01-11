@@ -38,7 +38,7 @@ public class LeoDanmakuService {
             List<String> targets = new ArrayList<>(config.getApiUrls());
             if (targets.isEmpty()) {
                 DanmakuSpider.log("没有配置API地址");
-                DanmakuSpider.safeShowToast(activity, "没有配置API地址");
+                Utils.safeShowToast(activity, "没有配置API地址");
                 return globalResults;
             }
 
@@ -108,7 +108,7 @@ public class LeoDanmakuService {
         for (DanmakuItem item : globalResults) {
             resultMap.put(item.getEpId(), item);
         }
-        DanmakuSpider.lastDanmakuItemMap = resultMap;
+        DanmakuManager.lastDanmakuItemMap = resultMap;
 
         return globalResults;
     }
@@ -262,7 +262,7 @@ public class LeoDanmakuService {
                 if (!TextUtils.isEmpty(episodeInfo.getEpisodeNum())) {
                     sb.append(" ").append(episodeInfo.getEpisodeNum());
                 }
-//                DanmakuSpider.safeShowToast(activity, sb.toString());
+//                Utils.safeShowToast(activity, sb.toString());
                 DanmakuSpider.log(sb.toString());
             }
         });
@@ -359,7 +359,7 @@ public class LeoDanmakuService {
                         activity.runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                DanmakuSpider.safeShowToast(activity, "自动搜索未找到弹幕，请手动搜索");
+                                Utils.safeShowToast(activity, "自动搜索未找到弹幕，请手动搜索");
                             }
                         });
                     }
@@ -501,7 +501,7 @@ public class LeoDanmakuService {
                     activity.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            DanmakuSpider.safeShowToast(activity, "弹幕数据验证失败，请稍后重试");
+                            Utils.safeShowToast(activity, "弹幕数据验证失败，请稍后重试");
                         }
                     });
                 }
@@ -544,10 +544,10 @@ public class LeoDanmakuService {
                                     danmakuItem.getTitle(),
                                     danmakuItem.getEpTitle(),
                                     finalDanmakuCount);
-                            DanmakuSpider.safeShowToast(activity, message);
+                            Utils.safeShowToast(activity, message);
                             DanmakuSpider.log(message);
                         } else {
-                            DanmakuSpider.safeShowToast(activity, "推送失败: 无响应或响应异常");
+                            Utils.safeShowToast(activity, "推送失败: 无响应或响应异常");
                             DanmakuSpider.log("❌ 推送失败，响应: " + finalPushResp);
                         }
                     }
@@ -557,7 +557,7 @@ public class LeoDanmakuService {
             DanmakuSpider.log("推送异常: " + e.getMessage());
             e.printStackTrace();
             if (activity != null && !activity.isFinishing()) {
-                DanmakuSpider.safeShowToast(activity, "推送异常: " + e.getMessage());
+                Utils.safeShowToast(activity, "推送异常: " + e.getMessage());
             }
         }
     }

@@ -2,6 +2,7 @@ package com.github.catvod.spider;
 
 import android.app.Activity;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
@@ -100,7 +101,7 @@ public class DanmakuScanner {
             @Override
             public void run() {
                 try {
-                    Activity act = DanmakuSpider.getTopActivity();
+                    Activity act = Utils.getTopActivity();
                     if (act != null && !act.isFinishing()) {
                         // 检查是否是播放界面
                         String className = act.getClass().getName().toLowerCase();
@@ -154,7 +155,7 @@ public class DanmakuScanner {
                             }
 
                             // 检测是否开启自动查询或者已经手动查询过
-                            if (!DanmakuSpider.autoPushEnabled && TextUtils.isEmpty(DanmakuSpider.lastManualDanmakuUrl)) {
+                            if (!DanmakuSpider.autoPushEnabled && TextUtils.isEmpty(DanmakuManager.lastManualDanmakuUrl)) {
                                 return;
                             }
 
@@ -260,9 +261,9 @@ public class DanmakuScanner {
             } else if (!isVideoPlaying && wasPlaying) {
                 // 视频停止播放
                 DanmakuSpider.log("⏸️ 检测到视频停止播放");
-                DanmakuSpider.currentVideoSignature = "";
-                DanmakuSpider.lastVideoDetectedTime = 0;
-                DanmakuSpider.lastDanmakuId = -1;
+                DanmakuManager.currentVideoSignature = "";
+                DanmakuManager.lastVideoDetectedTime = 0;
+                DanmakuManager.lastDanmakuId = -1;
                 DanmakuSpider.resetAutoSearch();
                 currentSeriesName = "";
                 currentEpisodeNum = "";
@@ -310,11 +311,11 @@ public class DanmakuScanner {
 
     // 重置播放状态
     private static void resetPlaybackStatus() {
-        DanmakuSpider.currentVideoSignature = "";
-        DanmakuSpider.lastVideoDetectedTime = 0;
-        DanmakuSpider.lastDanmakuId = -1;
-        DanmakuSpider.lastManualDanmakuUrl = "";
-        DanmakuSpider.lastAutoDanmakuUrl = "";
+        DanmakuManager.currentVideoSignature = "";
+        DanmakuManager.lastVideoDetectedTime = 0;
+        DanmakuManager.lastDanmakuId = -1;
+        DanmakuManager.lastManualDanmakuUrl = "";
+        DanmakuManager.lastAutoDanmakuUrl = "";
 
         currentSeriesName = "";
         currentEpisodeNum = "";
@@ -438,12 +439,12 @@ public class DanmakuScanner {
 //        DanmakuSpider.log("🔑 视频签名: " + newSignature);
 
         // 检查是否为同一个视频
-        boolean isSameVideo = isSameVideo(DanmakuSpider.currentVideoSignature, newSignature);;
+        boolean isSameVideo = isSameVideo(DanmakuManager.currentVideoSignature, newSignature);;
 
         if (!isSameVideo) {
             // 不同的视频
-            DanmakuSpider.currentVideoSignature = newSignature;
-            DanmakuSpider.lastVideoDetectedTime = System.currentTimeMillis();
+            DanmakuManager.currentVideoSignature = newSignature;
+            DanmakuManager.lastVideoDetectedTime = System.currentTimeMillis();
 
             handleEpisodeChange(activity);
         } else {
@@ -1015,7 +1016,7 @@ public class DanmakuScanner {
                 videoPlayStartTime = System.currentTimeMillis();
 
                 // 尝试获取下一个弹幕URL
-                DanmakuItem nextDanmakuItem = DanmakuSpider.getNextDanmakuItem(Integer.parseInt(currentEpisodeNum), Integer.parseInt(lastEpisodeInfo.getEpisodeNum()));
+                DanmakuItem nextDanmakuItem = DanmakuManager.getNextDanmakuItem(Integer.parseInt(currentEpisodeNum), Integer.parseInt(lastEpisodeInfo.getEpisodeNum()));
 
                 if (nextDanmakuItem != null) {
                     // 更新记录
@@ -1234,7 +1235,7 @@ public class DanmakuScanner {
                 btn.setOnLongClickListener(new View.OnLongClickListener() {
                     @Override
                     public boolean onLongClick(View v) {
-                        DanmakuSpider.safeShowToast(parent.getContext(), "Leo弹幕插件 v1.0");
+                        Utils.safeShowToast(parent.getContext(), "Leo弹幕插件 v1.0");
                         return true;
                     }
                 });
@@ -1311,7 +1312,9 @@ public class DanmakuScanner {
             }
 
             // 确保按钮在最顶层显示
-            btn.setElevation(10f); // 设置阴影层级，确保按钮在顶层
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                btn.setElevation(10f); // 设置阴影层级，确保按钮在顶层
+            }
             btn.bringToFront(); // 将按钮置于最前
 
             try {
@@ -1423,7 +1426,7 @@ public class DanmakuScanner {
                     activity.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-//                            DanmakuSpider.safeShowToast(activity,"Leo弹幕获取失败，请手动搜索");
+//                            Utils.safeShowToast(activity,"Leo弹幕获取失败，请手动搜索");
                         }
                     });
                 }

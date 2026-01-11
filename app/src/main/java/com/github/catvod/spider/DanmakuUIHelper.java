@@ -203,7 +203,7 @@ public class DanmakuUIHelper {
                             }
 
                             if (newUrls.isEmpty()) {
-                                DanmakuSpider.safeShowToast(activity, "请输入有效的API地址");
+                                Utils.safeShowToast(activity, "请输入有效的API地址");
                                 return;
                             }
 
@@ -211,7 +211,7 @@ public class DanmakuUIHelper {
                             config.setApiUrls(newUrls);
                             DanmakuConfigManager.saveConfig(activity, config);
 
-                            DanmakuSpider.safeShowToast(activity, "配置已保存");
+                            Utils.safeShowToast(activity, "配置已保存");
 
                             DanmakuSpider.log("已保存API地址: " + newUrls);
 
@@ -232,9 +232,9 @@ public class DanmakuUIHelper {
                                 }
                                 DanmakuScanner.lastDetectedTitle = "";
                                 DanmakuSpider.resetAutoSearch();
-                                DanmakuSpider.safeShowToast(activity, "缓存已清空");
+                                Utils.safeShowToast(activity, "缓存已清空");
                             } catch (Exception e) {
-                                DanmakuSpider.safeShowToast(activity, "清空失败");
+                                Utils.safeShowToast(activity, "清空失败");
                             }
                         }
                     });
@@ -401,10 +401,10 @@ public class DanmakuUIHelper {
                         config.setLpHeight(height);
                         config.setLpAlpha(alpha);
                         DanmakuConfigManager.saveConfig(activity, config);
-                        DanmakuSpider.safeShowToast(activity, "布局配置已保存");
+                        Utils.safeShowToast(activity, "布局配置已保存");
                         dialog.dismiss();
                     } catch (NumberFormatException e) {
-                        DanmakuSpider.safeShowToast(activity, "请输入有效的数字");
+                        Utils.safeShowToast(activity, "请输入有效的数字");
                     }
                 });
 
@@ -557,7 +557,7 @@ public class DanmakuUIHelper {
                     titleLayout.setPadding(dpToPx(activity, 20), dpToPx(activity, 16), dpToPx(activity, 20), dpToPx(activity, 16));
 
                     TextView titleText = new TextView(activity);
-                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-11 16:20");
+                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-11 17:18");
                     titleText.setTextSize(20);
                     titleText.setTextColor(Color.WHITE);
                     titleText.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -761,7 +761,7 @@ public class DanmakuUIHelper {
                         public void onClick(View v) {
                             String keyword = searchInput.getText().toString().trim();
                             if (TextUtils.isEmpty(keyword)) {
-                                DanmakuSpider.safeShowToast(activity, "请输入关键词");
+                                Utils.safeShowToast(activity, "请输入关键词");
                                 return;
                             }
 
@@ -854,9 +854,9 @@ public class DanmakuUIHelper {
                                                             String currentTabName = (String) v.getTag();
                                                             List<DanmakuItem> tabItems = groupedResults.get(currentTabName);
                                                             boolean containsLastUrl = false;
-                                                            if (DanmakuSpider.lastDanmakuUrl != null && !DanmakuSpider.lastDanmakuUrl.isEmpty()) {
+                                                            if (DanmakuManager.lastDanmakuUrl != null && !DanmakuManager.lastDanmakuUrl.isEmpty()) {
                                                                 for (DanmakuItem item : tabItems) {
-                                                                    if (item.getDanmakuUrl() != null && item.getDanmakuUrl().equals(DanmakuSpider.lastDanmakuUrl)) {
+                                                                    if (item.getDanmakuUrl() != null && item.getDanmakuUrl().equals(DanmakuManager.lastDanmakuUrl)) {
                                                                         containsLastUrl = true;
                                                                         break;
                                                                     }
@@ -905,9 +905,9 @@ public class DanmakuUIHelper {
                                                 // 检查这个页签是否包含lastDanmakuUrl
                                                 List<DanmakuItem> tabItems = groupedResults.get(tabName);
                                                 boolean containsLastUrl = false;
-                                                if (DanmakuSpider.lastDanmakuUrl != null && !DanmakuSpider.lastDanmakuUrl.isEmpty()) {
+                                                if (DanmakuManager.lastDanmakuUrl != null && !DanmakuManager.lastDanmakuUrl.isEmpty()) {
                                                     for (DanmakuItem item : tabItems) {
-                                                        if (item.getDanmakuUrl() != null && item.getDanmakuUrl().equals(DanmakuSpider.lastDanmakuUrl)) {
+                                                        if (item.getDanmakuUrl() != null && item.getDanmakuUrl().equals(DanmakuManager.lastDanmakuUrl)) {
                                                             containsLastUrl = true;
                                                             break;
                                                         }
@@ -915,7 +915,7 @@ public class DanmakuUIHelper {
                                                 }
 
                                                 // 只有当lastDanmakuUrl为空或空字符串时才默认选中第一个页签
-                                                if (DanmakuSpider.lastDanmakuUrl == null || DanmakuSpider.lastDanmakuUrl.isEmpty()) {
+                                                if (DanmakuManager.lastDanmakuUrl == null || DanmakuManager.lastDanmakuUrl.isEmpty()) {
                                                     // 默认选中第一个页签 - 蓝色
                                                     if (i == 0) {
                                                         tabBtn.setBackground(createRoundedBackgroundDrawable(PRIMARY_COLOR));
@@ -1004,12 +1004,12 @@ public class DanmakuUIHelper {
 
         // 检查哪些分组包含上次使用的弹幕URL
         java.util.Set<String> groupsWithLastUrl = new java.util.HashSet<>();
-        if (DanmakuSpider.lastDanmakuUrl != null) {
+        if (DanmakuManager.lastDanmakuUrl != null) {
             for (java.util.Map.Entry<String, List<DanmakuItem>> entry : animeGroups.entrySet()) {
                 String animeTitle = entry.getKey();
                 List<DanmakuItem> animeItems = entry.getValue();
                 for (DanmakuItem item : animeItems) {
-                    if (item.getDanmakuUrl() != null && item.getDanmakuUrl().equals(DanmakuSpider.lastDanmakuUrl)) {
+                    if (item.getDanmakuUrl() != null && item.getDanmakuUrl().equals(DanmakuManager.lastDanmakuUrl)) {
                         groupsWithLastUrl.add(animeTitle);
                         break;
                     }
@@ -1179,7 +1179,7 @@ public class DanmakuUIHelper {
                                         if (child instanceof Button && child.getTag() instanceof DanmakuItem) {
                                             DanmakuItem item = (DanmakuItem) child.getTag();
                                             if (item.getDanmakuUrl() != null &&
-                                                    item.getDanmakuUrl().equals(DanmakuSpider.lastDanmakuUrl)) {
+                                                    item.getDanmakuUrl().equals(DanmakuManager.lastDanmakuUrl)) {
                                                 targetView = child;
                                                 break;
                                             }
@@ -1241,7 +1241,7 @@ public class DanmakuUIHelper {
 
         // 设置圆角背景 - 第三层级：绿色
         String currentDanmakuUrl = item.getDanmakuUrl();
-        if (currentDanmakuUrl != null && currentDanmakuUrl.equals(DanmakuSpider.lastDanmakuUrl)) {
+        if (currentDanmakuUrl != null && currentDanmakuUrl.equals(DanmakuManager.lastDanmakuUrl)) {
             // 高亮显示 - 使用绿色背景
             resultItem.setBackground(createRoundedBackgroundDrawable(TERTIARY_COLOR));
             resultItem.setTextColor(Color.WHITE);
@@ -1274,7 +1274,7 @@ public class DanmakuUIHelper {
                     String danmakuUrl = item_tag.getDanmakuUrl();
 
                     // 检查是否为上次使用的弹幕URL，如果是则保持高亮状态
-                    if (danmakuUrl != null && danmakuUrl.equals(DanmakuSpider.lastDanmakuUrl)) {
+                    if (danmakuUrl != null && danmakuUrl.equals(DanmakuManager.lastDanmakuUrl)) {
                         v.setBackground(createRoundedBackgroundDrawable(TERTIARY_COLOR));
                         ((Button) v).setTextColor(Color.WHITE);
                     } else {
