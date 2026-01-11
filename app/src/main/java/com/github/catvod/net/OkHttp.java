@@ -128,7 +128,7 @@ public class OkHttp {
         return client().newBuilder().connectTimeout(timeout, TimeUnit.MILLISECONDS).readTimeout(timeout, TimeUnit.MILLISECONDS).writeTimeout(timeout, TimeUnit.MILLISECONDS).build();
     }
 
-    private static OkHttpClient client() {
+    public static OkHttpClient client() {
         try {
             return Objects.requireNonNull(Spider.client());
         } catch (Throwable e) {

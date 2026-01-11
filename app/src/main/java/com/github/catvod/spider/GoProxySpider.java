@@ -21,7 +21,7 @@ import static com.github.catvod.spider.Init.get;
 public class GoProxySpider extends Spider {
     private static final ExecutorService executor = Executors.newFixedThreadPool(5);
     private static volatile boolean isRunning = false;
-    private static Timer healthCheckTimer;
+    private static volatile Timer healthCheckTimer;
     private static volatile boolean isFirstHealthCheck = true; // 新增：用于标记是否是首次健康检查
 
     private static String goProxy = "";

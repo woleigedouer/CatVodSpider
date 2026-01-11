@@ -66,7 +66,7 @@ public class WebServer extends NanoHTTPD {
                 "<script>" +
                 "function search() {" +
                 "  var keyword = document.getElementById('keyword').value;" +
-                "  fetch('/search?keyword=' + keyword)" +
+                "  fetch('/search?keyword=' + encodeURIComponent(keyword))" +
                 "    .then(response => response.json())" +
                 "    .then(data => {" +
                 "      var resultsDiv = document.getElementById('results');" +
@@ -74,14 +74,14 @@ public class WebServer extends NanoHTTPD {
                 "      data.forEach(item => {" +
                 "        var div = document.createElement('div');" +
                 "        div.className = 'result-item';" +
-                "        div.innerText = item.title;" +
+                "        div.innerText = item.title + ' - ' + item.epTitle;" +
                 "        div.onclick = function() { select(item.danmakuUrl); };" +
                 "        resultsDiv.appendChild(div);" +
                 "      });" +
                 "    });" +
                 "}" +
                 "function select(url) {" +
-                "  fetch('/select?url=' + url);" +
+                "  fetch('/select?url=' + encodeURIComponent(url));" +
                 "}" +
                 "</script>" +
                 "</body></html>";
