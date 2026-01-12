@@ -68,6 +68,9 @@ public class DanmakuScanner {
     private static Timer hookTimer;
     private static volatile boolean isMonitoring = false;
     private static Timer playbackCheckTimer;
+    
+    // 用于确保run方法串行执行的锁
+    private static final Object runLock = new Object();
 
     // 主线程Handler
     private static final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -100,75 +103,75 @@ public class DanmakuScanner {
         hookTimer.schedule(new TimerTask() {
             @Override
             public void run() {
-                try {
-                    Activity act = Utils.getTopActivity();
-                    if (act != null && !act.isFinishing()) {
-                        // 检查是否是播放界面
-                        String className = act.getClass().getName().toLowerCase();
-                        if (isPlayerActivity(className)) {
+                synchronized (runLock) {
+                    try {
+                        Activity act = Utils.getTopActivity();
+                        if (act != null && !act.isFinishing()) {
+                            // 检查是否是播放界面
+                            String className = act.getClass().getName().toLowerCase();
+                            if (isPlayerActivity(className)) {
 //                            DanmakuSpider.log("[Monitor] 检测到播放界面: " + className);
 
-                            // 注入Leo弹幕按钮
-                            mainHandler.post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    try {
-                                        synchronized (DanmakuScanner.class) {
+                                // 注入Leo弹幕按钮0
+                                mainHandler.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        try {
                                             injectLeoButton(act);
+                                        } catch (Exception e) {
+                                            DanmakuSpider.log("❌ 按钮注入异常: " + e.getMessage());
                                         }
-                                    } catch (Exception e) {
-                                        DanmakuSpider.log("❌ 按钮注入异常: " + e.getMessage());
                                     }
-                                }
-                            });
+                                });
 
-                            // 检查播放状态
+                                // 检查播放状态
 //                            checkPlaybackStatus(act);
 
-                            // Hook获取标题
+                                // Hook获取标题
 //                            String newTitle = extractTitleFromView(act.getWindow().getDecorView());
-                            Media media = getMedia();
-                            if (media == null) return;
+                                Media media = getMedia();
+                                if (media == null) return;
 
-                            if (TextUtils.isEmpty(media.getUrl())) {
-                                return;
-                            }
+                                if (TextUtils.isEmpty(media.getUrl())) {
+                                    return;
+                                }
 
-                            isVideoPlaying = media.getState() == 3 || media.getState() == 2;
+                                isVideoPlaying = media.getState() == 3 || media.getState() == 2;
 
-                            if (isVideoPlaying) {
-                                // 获取媒体信息
-                                lastEpisodeInfo = getEpisodeInfo(media, act);
+                                if (isVideoPlaying) {
+                                    // 获取媒体信息
+                                    lastEpisodeInfo = getEpisodeInfo(media, act);
 
-                                // 视频开始播放
-                                videoPlayStartTime = System.currentTimeMillis();
-                                DanmakuSpider.log("▶️ 检测到视频开始播放");
+                                    // 视频开始播放
+                                    videoPlayStartTime = System.currentTimeMillis();
+//                                    DanmakuSpider.log("▶️ 检测到视频开始播放");
+                                } else {
+                                    // 视频停止播放
+                                    DanmakuSpider.log("⏸️ 检测到视频停止播放");
+
+                                    // 清空缓存和队列
+                                    pendingPushes.clear();
+                                    lastPushTime.clear();
+
+                                    return;
+                                }
+
+                                // 检测是否开启自动查询或者已经手动查询过
+                                if (!DanmakuSpider.autoPushEnabled && TextUtils.isEmpty(DanmakuManager.lastManualDanmakuUrl)) {
+                                    return;
+                                }
+
+                                processDetectedTitle(act);
                             } else {
-                                // 视频停止播放
-                                DanmakuSpider.log("⏸️ 检测到视频停止播放");
-
-                                // 清空缓存和队列
-                                pendingPushes.clear();
-                                lastPushTime.clear();
-
-                                return;
-                            }
-
-                            // 检测是否开启自动查询或者已经手动查询过
-                            if (!DanmakuSpider.autoPushEnabled && TextUtils.isEmpty(DanmakuManager.lastManualDanmakuUrl)) {
-                                return;
-                            }
-
-                            processDetectedTitle(act);
-                        } else {
-                            // 不在播放界面，重置播放状态
-                            resetPlaybackStatus();
+                                // 不在播放界面，重置播放状态
+                                resetPlaybackStatus();
 
 //                            DanmakuSpider.log("不在播放界面，重置播放状态");
+                            }
                         }
+                    } catch (Exception e) {
+                        DanmakuSpider.log("❌ Hook监控异常: " + e.getMessage());
                     }
-                } catch (Exception e) {
-                    DanmakuSpider.log("❌ Hook监控异常: " + e.getMessage());
                 }
             }
         }, 2000, 500);
@@ -1175,7 +1178,7 @@ public class DanmakuScanner {
                     ((ViewGroup) existing.getParent()).removeView(existing);
                     DanmakuSpider.log("[按钮注入] 移除旧按钮，准备重新注入");
                 } else {
-                    DanmakuSpider.log("[按钮注入] 按钮已存在，跳过");
+//                    DanmakuSpider.log("[按钮注入] 按钮已存在，跳过");
                     return; // 否则不重复添加
                 }
             }

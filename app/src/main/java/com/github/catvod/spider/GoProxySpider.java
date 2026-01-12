@@ -23,6 +23,9 @@ public class GoProxySpider extends Spider {
     private static volatile boolean isRunning = false;
     private static volatile Timer healthCheckTimer;
     private static volatile boolean isFirstHealthCheck = true; // 新增：用于标记是否是首次健康检查
+    
+    // 用于确保健康检查run方法串行执行的锁
+    private static final Object healthCheckLock = new Object();
 
     private static String goProxy = "";
     private static final long HEALTH_INTERVAL = 500; // 0.5秒间隔
@@ -72,31 +75,33 @@ public class GoProxySpider extends Spider {
         healthCheckTimer.schedule(new TimerTask() {
             @Override
             public void run() {
-                boolean isHealthy = false;
-                try {
-                    JsonObject json = new Gson().fromJson(OkHttp.string("http://127.0.0.1:5575/health"), JsonObject.class);
-                    if (json != null && json.has("status") && json.get("status").getAsString().equals("healthy")) {
-                        SpiderDebug.log("Health check passed");
-                        isHealthy = true;
-                    } else {
-                        SpiderDebug.log("Health check status not healthy");
-                    }
-                } catch (Exception e) {
-                    SpiderDebug.log("Error during health check: " + e.getMessage());
-                }
-
-                if (isHealthy) {
-                    // **优化点**: 如果是首次检查成功，并且有回调任务，则执行它
-                    if (isFirstHealthCheck) {
-                        get().handler.post(() -> Toast.makeText(context,"加载：" + goProxy + "成功", Toast.LENGTH_SHORT).show());
-                        isFirstHealthCheck = false; // 不再是首次
-                    }
-                } else {
+                synchronized (healthCheckLock) {
+                    boolean isHealthy = false;
                     try {
-                        initGoProxy(context);
-                        SpiderDebug.log("Health check failed, restarting goProxy");
-                    } catch (Exception restartEx) {
-                        SpiderDebug.log("Failed to restart goProxy: " + restartEx.getMessage());
+                        JsonObject json = new Gson().fromJson(OkHttp.string("http://127.0.0.1:5575/health"), JsonObject.class);
+                        if (json != null && json.has("status") && json.get("status").getAsString().equals("healthy")) {
+                            SpiderDebug.log("Health check passed");
+                            isHealthy = true;
+                        } else {
+                            SpiderDebug.log("Health check status not healthy");
+                        }
+                    } catch (Exception e) {
+                        SpiderDebug.log("Error during health check: " + e.getMessage());
+                    }
+
+                    if (isHealthy) {
+                        // **优化点**: 如果是首次检查成功，并且有回调任务，则执行它
+                        if (isFirstHealthCheck) {
+//                        get().handler.post(() -> Toast.makeText(context,"加载：" + goProxy + "成功", Toast.LENGTH_SHORT).show());
+                            isFirstHealthCheck = false; // 不再是首次
+                        }
+                    } else {
+                        try {
+                            initGoProxy(context);
+                            SpiderDebug.log("Health check failed, restarting goProxy");
+                        } catch (Exception restartEx) {
+                            SpiderDebug.log("Failed to restart goProxy: " + restartEx.getMessage());
+                        }
                     }
                 }
             }
@@ -105,7 +110,7 @@ public class GoProxySpider extends Spider {
         SpiderDebug.log("Health check thread started");
     }
 
-    public static void initGoProxy(Context context) {
+    public static synchronized void initGoProxy(Context context) {
         SpiderDebug.log("自定義爬蟲代碼載入成功！");
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {

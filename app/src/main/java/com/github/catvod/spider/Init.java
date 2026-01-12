@@ -44,11 +44,15 @@ public class Init {
 
         // 启动GoProxy
         GoProxySpider.initGoProxy(context);
-        
-        DanmakuSpider.doInitWork(context,"");
 
         // 启动Go代理健康检查
         GoProxySpider.startHealthCheck(context);
+
+        // 删除弹幕缓存
+        DanmakuSpider.clearCache(context);
+
+        // 初始化
+        DanmakuSpider.doInitWork(context,"");
 
         // 启动Hook监控
         DanmakuScanner.startHookMonitor();

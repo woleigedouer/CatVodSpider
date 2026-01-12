@@ -230,15 +230,7 @@ public class DanmakuUIHelper {
                         @Override
                         public void onClick(View v) {
                             try {
-                                File cacheDir = new File(activity.getCacheDir(), "leo_danmaku_cache");
-                                if (cacheDir.exists()) {
-                                    File[] files = cacheDir.listFiles();
-                                    if (files != null) {
-                                        for (File f : files) f.delete();
-                                    }
-                                }
-                                DanmakuScanner.lastDetectedTitle = "";
-                                DanmakuSpider.resetAutoSearch();
+                                DanmakuSpider.clearCache(activity);
                                 Utils.safeShowToast(activity, "缓存已清空");
                             } catch (Exception e) {
                                 Utils.safeShowToast(activity, "清空失败");
@@ -564,7 +556,7 @@ public class DanmakuUIHelper {
                     titleLayout.setPadding(dpToPx(activity, 20), dpToPx(activity, 16), dpToPx(activity, 20), dpToPx(activity, 16));
 
                     TextView titleText = new TextView(activity);
-                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-11 22:40");
+                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-12 13:12");
                     titleText.setTextSize(20);
                     titleText.setTextColor(Color.WHITE);
                     titleText.setTypeface(null, android.graphics.Typeface.BOLD);

@@ -66,6 +66,18 @@ public class DanmakuSpider extends Spider {
         doInitWork(context, extend);
     }
 
+    public static void clearCache(Context context) {
+        File cacheDir = new File(context.getCacheDir(), "leo_danmaku_cache");
+        if (cacheDir.exists()) {
+            File[] files = cacheDir.listFiles();
+            if (files != null) {
+                for (File f : files) f.delete();
+            }
+        }
+        DanmakuScanner.lastDetectedTitle = "";
+        DanmakuSpider.resetAutoSearch();
+    }
+
     public static synchronized void doInitWork(Context context, String extend) {
         // 初始化缓存目录
         sCacheDir = new File(context.getCacheDir(), "leo_danmaku_cache");
@@ -115,15 +127,15 @@ public class DanmakuSpider extends Spider {
         loadAutoPushState(context);
 
         // 显示启动提示
-        Activity act = Utils.getTopActivity();
-        if (act != null) {
-            Utils.safeRunOnUiThread(act, new Runnable() {
-                @Override
-                public void run() {
-                    Utils.safeShowToast(act, "Leo弹幕加载成功");
-                }
-            });
-        }
+//        Activity act = Utils.getTopActivity();
+//        if (act != null) {
+//            Utils.safeRunOnUiThread(act, new Runnable() {
+//                @Override
+//                public void run() {
+//                    Utils.safeShowToast(act, "Leo弹幕加载成功");
+//                }
+//            });
+//        }
 
         log("Leo弹幕插件 v1.0 初始化完成");
         initialized = true;
