@@ -1249,7 +1249,7 @@ public class DanmakuScanner {
                             DanmakuSpider.lastButtonClickTime = currentTime;
 
                             DanmakuSpider.log("[按钮长按] 打开搜索对话框");
-                            DanmakuUIHelper.showSearchDialog(activity, lastEpisodeInfo.getEpisodeName());
+                            DanmakuUIHelper.showQRCodeDialog((Activity) parent.getContext(), "http://" + NetworkUtils.getLocalIpAddress() + ":9810");
                         }
                         return true;
                     }
