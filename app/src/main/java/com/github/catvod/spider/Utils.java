@@ -7,10 +7,13 @@ import android.os.Handler;
 import android.os.Looper;
 import android.widget.Toast;
 
+import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
 
 public class Utils {
+
+    private static WeakReference<Activity> cachedActivity;
 
     public static Activity getTopActivity() {
         try {
@@ -31,11 +34,26 @@ public class Utils {
                 if (!pausedField.getBoolean(activityRecord)) {
                     java.lang.reflect.Field activityField = activityRecordClass.getDeclaredField("activity");
                     activityField.setAccessible(true);
-                    return (Activity) activityField.get(activityRecord);
+                    Activity activity = (Activity) activityField.get(activityRecord);
+                    if (activity != null) {
+                        cachedActivity = new WeakReference<>(activity);
+                        return activity;
+                    }
                 }
             }
         } catch (Exception e) {
             DanmakuSpider.log("获取TopActivity失败: " + e.getMessage());
+        }
+
+        // 如果反射获取失败，尝试从缓存返回
+        if (cachedActivity != null) {
+            Activity activity = cachedActivity.get();
+            if (activity != null && !activity.isFinishing()) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && activity.isDestroyed()) {
+                    return null;
+                }
+                return activity;
+            }
         }
         return null;
     }

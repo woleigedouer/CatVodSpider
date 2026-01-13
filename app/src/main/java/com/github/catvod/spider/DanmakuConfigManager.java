@@ -22,8 +22,8 @@ public class DanmakuConfigManager {
     private static final Gson gson = new Gson();
 
     public static DanmakuConfig getConfig(Context context) {
-        if (sDanmakuConfig == null) {
-            sDanmakuConfig = loadConfig(context);
+        if (context != null) {
+            sDanmakuConfig  = loadConfig(context);
         }
         return sDanmakuConfig;
     }
