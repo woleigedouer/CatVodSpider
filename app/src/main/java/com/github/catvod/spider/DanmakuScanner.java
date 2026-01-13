@@ -203,6 +203,7 @@ public class DanmakuScanner {
         episodeInfo.setEpisodeSeasonNum(seasonNum);
         episodeInfo.setSeriesName(seriesName);
         episodeInfo.setFileName(media.getArtist().replace("正在播放：", ""));
+        episodeInfo.setEpisodeUrl(media.getUrl());
 
         return episodeInfo;
     }
@@ -497,7 +498,7 @@ public class DanmakuScanner {
 
     // 生成签名
     private static String generateSignature(EpisodeInfo episodeInfo) {
-        return episodeInfo.getEpisodeName() + "|" + episodeInfo.getFileName();
+        return episodeInfo.getEpisodeUrl();
     }
 
     // 判断是否为同一个视频
@@ -1049,40 +1050,35 @@ public class DanmakuScanner {
         boolean isSameSeries = isSameSeries(currentSeriesName, lastEpisodeInfo.getSeriesName());
 
         if (isSameSeries) {
-            // 相同剧集系列，检查集数是否变化
-            if (!currentEpisodeNum.equals(lastEpisodeInfo.getEpisodeNum())) {
-                long timeSinceLastChange = currentTime - lastEpisodeChangeTime;
+            long timeSinceLastChange = currentTime - lastEpisodeChangeTime;
 
-                DanmakuSpider.log("🔄 检测到同系列换集: " + currentEpisodeNum + " -> " + lastEpisodeInfo.getEpisodeNum());
-                DanmakuSpider.log("⏰ 距离上次换集: " + timeSinceLastChange + "ms");
-                videoPlayStartTime = System.currentTimeMillis();
+            DanmakuSpider.log("🔄 检测到同系列换集: " + currentEpisodeNum + " -> " + lastEpisodeInfo.getEpisodeNum());
+            DanmakuSpider.log("⏰ 距离上次换集: " + timeSinceLastChange + "ms");
+            videoPlayStartTime = System.currentTimeMillis();
 
-                // 尝试获取下一个弹幕URL
-                DanmakuItem nextDanmakuItem = DanmakuManager.getNextDanmakuItem(Integer.parseInt(currentEpisodeNum), Integer.parseInt(lastEpisodeInfo.getEpisodeNum()));
+            // 尝试获取下一个弹幕URL
+            DanmakuItem nextDanmakuItem = DanmakuManager.getNextDanmakuItem(Integer.parseInt(currentEpisodeNum), Integer.parseInt(lastEpisodeInfo.getEpisodeNum()));
 
-                if (nextDanmakuItem != null) {
-                    // 更新记录
-                    currentEpisodeNum = lastEpisodeInfo.getEpisodeNum();
-                    lastEpisodeChangeTime = currentTime;
+            if (nextDanmakuItem != null) {
+                // 更新记录
+                currentEpisodeNum = lastEpisodeInfo.getEpisodeNum();
+                lastEpisodeChangeTime = currentTime;
 
-                    // 生成推送key
-                    String pushKey = generateSignature(lastEpisodeInfo);
+                // 生成推送key
+                String pushKey = generateSignature(lastEpisodeInfo);
 
-                    // 检查是否最近已经推送过相同的弹幕
+                // 检查是否最近已经推送过相同的弹幕
 //                    Long lastPush = lastPushTime.get(nextDanmakuItem.getDanmakuUrl());
 //                    if (lastPush != null && (currentTime - lastPush) < 60000) {
 //                        DanmakuSpider.log("⚠️ 最近1分钟内已推送过相同弹幕，跳过");
 //                        return;
 //                    }
 
-                    // 延迟推送，等待视频播放
-                    scheduleDelayedPush(nextDanmakuItem, activity, lastEpisodeInfo.getEpisodeName(), pushKey);
-                } else {
-                    DanmakuSpider.log("⚠️ 无法直接获取下一个弹幕URL，重新查询");
-                    LeoDanmakuService.autoSearch(lastEpisodeInfo, activity);
-                }
+                // 延迟推送，等待视频播放
+                scheduleDelayedPush(nextDanmakuItem, activity, lastEpisodeInfo.getEpisodeName(), pushKey);
             } else {
-//                DanmakuSpider.log("✅ 同一集，忽略");
+                DanmakuSpider.log("⚠️ 无法直接获取下一个弹幕URL，重新查询");
+                LeoDanmakuService.autoSearch(lastEpisodeInfo, activity);
             }
         } else {
             // 不同的剧集系列，更新记录
