@@ -318,8 +318,14 @@ public class LeoDanmakuService {
                                 String episodeNum = episodeInfo.getEpisodeNum();
                                 try {
                                     int epNum = Integer.parseInt(episodeNum);
-                                    String formattedEpTitle = String.format("第%s集", epNum);
-                                    if (!item.epTitle.contains(formattedEpTitle)) {
+                                    // 定义多种可能的集数格式
+                                    String format1 = String.format("第%d集", epNum);
+                                    String format2 = String.format("_%02d", epNum); // 补零格式，如 _01
+                                    String format3 = String.format("_%d", epNum);   // 不补零格式，如 _1
+
+                                    if (!item.epTitle.contains(format1) &&
+                                            !item.epTitle.contains(format2) &&
+                                            !item.epTitle.contains(format3)) {
                                         isMatch = false;
                                     }
                                 } catch (NumberFormatException e) {
