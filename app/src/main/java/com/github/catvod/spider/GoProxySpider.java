@@ -28,7 +28,7 @@ public class GoProxySpider extends Spider {
     private static final Object healthCheckLock = new Object();
 
     private static String goProxy = "";
-    private static final long HEALTH_INTERVAL = 500; // 0.5秒间隔
+    private static final long HEALTH_INTERVAL = 1000; // 1秒间隔
     private static boolean goProxyInitialized = false;
 
     @Override

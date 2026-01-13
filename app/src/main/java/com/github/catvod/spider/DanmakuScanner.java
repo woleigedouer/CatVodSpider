@@ -78,6 +78,8 @@ public class DanmakuScanner {
     private static final Handler mainHandler = new Handler(Looper.getMainLooper());
     private static Runnable delayedPushTask = null;
 
+    private static boolean isLeoButtonInjected = false;
+
     // 正则表达式
     private static final Pattern EPISODE_PATTERN = Pattern.compile(
             "(?:第\\s*([零一二三四五六七八九十百千万0-9]+)\\s*[集话章回])|" +
@@ -115,16 +117,18 @@ public class DanmakuScanner {
 //                            DanmakuSpider.log("[Monitor] 检测到播放界面: " + className);
 
                                 // 注入Leo弹幕按钮0
-                                mainHandler.post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        try {
-                                            injectLeoButton(act);
-                                        } catch (Exception e) {
-                                            DanmakuSpider.log("❌ 按钮注入异常: " + e.getMessage());
+                                if (!isLeoButtonInjected) {
+                                    mainHandler.post(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            try {
+                                                injectLeoButton(act);
+                                            } catch (Exception e) {
+                                                DanmakuSpider.log("❌ 按钮注入异常: " + e.getMessage());
+                                            }
                                         }
-                                    }
-                                });
+                                    });
+                                }
 
                                 // 检查播放状态
 //                            checkPlaybackStatus(act);
@@ -176,7 +180,7 @@ public class DanmakuScanner {
                     }
                 }
             }
-        }, 2000, 500);
+        }, 2000, 1000);
 
         // 启动播放状态检查定时器
         startPlaybackCheckTimer();
@@ -334,6 +338,7 @@ public class DanmakuScanner {
         lastEpisodeChangeTime = 0;
         isVideoPlaying = false;
         videoPlayStartTime = 0;
+        isLeoButtonInjected = false;
     }
 
     // 检查并执行待推送任务
@@ -447,6 +452,7 @@ public class DanmakuScanner {
         // 清空缓存和队列
         pendingPushes.clear();
         lastPushTime.clear();
+        isLeoButtonInjected = false;
 
         DanmakuSpider.log("🛑 Hook监控已停止");
     }
@@ -1394,6 +1400,7 @@ public class DanmakuScanner {
                 });
 
                 DanmakuSpider.log("✅ Leo弹幕按钮注入成功");
+                isLeoButtonInjected = true;
             } catch (Exception e) {
                 DanmakuSpider.log("❌ 添加按钮失败: " + e.getMessage());
                 parent.addView(btn);
