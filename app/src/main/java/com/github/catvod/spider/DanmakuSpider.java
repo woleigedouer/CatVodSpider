@@ -8,8 +8,8 @@ import android.os.Looper;
 import android.text.TextUtils;
 
 import com.github.catvod.bean.danmu.DanmakuItem;
-import com.github.catvod.crawler.Spider;
 
+import com.github.catvod.crawler.Spider;
 import com.github.catvod.crawler.SpiderDebug;
 import org.json.JSONArray;
 import org.json.JSONObject;
