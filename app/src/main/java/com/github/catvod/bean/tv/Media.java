@@ -1,5 +1,7 @@
 package com.github.catvod.bean.tv;
 
+import android.text.TextUtils;
+
 /**
  * 媒体信息 http://127.0.0.1:9978/media
  */
@@ -12,7 +14,7 @@ public class Media {
     /**
      * 播放状态
      */
-    private int state;
+    private Integer state;
 
     /**
      * 播放速度
@@ -44,6 +46,16 @@ public class Media {
      */
     private long position;
 
+    public boolean isPlaying() {
+        // 状态为2或3表示正在播放，或者有播放地址且播放时长和进度都大于0也认为在播放
+        if (state != null) {
+            return state == 2 || state == 3;
+        }  else {
+            return !TextUtils.isEmpty(url) && duration > 0 && position > 0;
+        }
+    }
+
+
     public String getUrl() {
         return url;
     }
@@ -52,11 +64,11 @@ public class Media {
         this.url = url;
     }
 
-    public int getState() {
+    public Integer getState() {
         return state;
     }
 
-    public void setState(int state) {
+    public void setState(Integer state) {
         this.state = state;
     }
 

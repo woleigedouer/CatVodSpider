@@ -10,6 +10,7 @@ import android.text.TextUtils;
 import com.github.catvod.bean.danmu.DanmakuItem;
 import com.github.catvod.crawler.Spider;
 
+import com.github.catvod.crawler.SpiderDebug;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -160,6 +161,8 @@ public class DanmakuSpider extends Spider {
     public static void log(String msg) {
         String time = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date());
         String newLogEntry = time + " " + Thread.currentThread().getName() + " " + msg;
+
+        SpiderDebug.log(newLogEntry);
 
         // 检查最后一条日志是否与当前消息相同，如果相同则不添加
         if (!logBuffer.isEmpty()) {

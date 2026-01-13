@@ -13,6 +13,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import com.github.catvod.bean.danmu.DanmakuItem;
 import com.github.catvod.bean.tv.Media;
+import com.github.catvod.crawler.SpiderDebug;
 import com.github.catvod.danmu.SharedPreferencesService;
 import com.github.catvod.net.OkHttp;
 import com.google.gson.Gson;
@@ -37,6 +38,7 @@ public class DanmakuScanner {
     private static boolean isVideoPlaying = false;
     private static long videoPlayStartTime = 0;
     private static final long MIN_PLAY_DURATION_BEFORE_PUSH = 0; // 至少播放0秒再推送
+    private static final long YSC_MIN_PLAY_DURATION_BEFORE_PUSH = 3000; // 至少播放0秒再推送
     private static final long FORCE_PUSH_TIMEOUT = 10000; // 10秒后强制推送
     private static final long MAX_WAIT_FOR_PLAYBACK = 15000; // 最多等待15秒
 
@@ -136,7 +138,7 @@ public class DanmakuScanner {
                                     return;
                                 }
 
-                                isVideoPlaying = media.getState() == 3 || media.getState() == 2;
+                                isVideoPlaying = media.isPlaying();
 
                                 if (isVideoPlaying) {
                                     // 获取媒体信息
@@ -212,7 +214,14 @@ public class DanmakuScanner {
 //                            DanmakuSpider.log("[Monitor] mediaJson: " + mediaJson);
 
         Gson gson = new Gson();
-        return gson.fromJson(mediaJson, Media.class);
+        Media media = gson.fromJson(mediaJson, Media.class);
+
+        // 兼容影视仓
+        if (TextUtils.isEmpty(media.getArtist())) {
+            media.setArtist(media.getTitle());
+        }
+
+        return media;
     }
 
     // 启动播放状态检查定时器
@@ -356,16 +365,34 @@ public class DanmakuScanner {
                 continue;
             }
 
+            Media media = getMedia();
+            if (media == null) {
+                DanmakuSpider.log("❌ 无法获取当前播放媒体信息，取消推送: " + key);
+                pendingPushes.remove(key);
+                continue;
+            }
             // 检查视频是否在播放
-            if (isVideoPlaying) {
-                // 检查是否播放了足够长时间
-                long playDuration = currentTime - videoPlayStartTime;
-                if (playDuration >= MIN_PLAY_DURATION_BEFORE_PUSH) {
-                    DanmakuSpider.log("✅ 视频已播放" + playDuration + "ms，执行推送: " + key);
-                    executePendingPush(push, false);
-                    pendingPushes.remove(key);
+            if (media.isPlaying()) {
+                if (media.getState() != null) {
+                    // 检查是否播放了足够长时间
+                    long playDuration = currentTime - videoPlayStartTime;
+                    if (playDuration >= MIN_PLAY_DURATION_BEFORE_PUSH) {
+                        DanmakuSpider.log("✅ 视频已播放" + playDuration + "ms，执行推送: " + key);
+                        executePendingPush(push, false);
+                        pendingPushes.remove(key);
+                    } else {
+                        DanmakuSpider.log("⏳ 视频播放中(" + playDuration + "ms)，等待达到" + MIN_PLAY_DURATION_BEFORE_PUSH + "ms");
+                    }
                 } else {
-                    DanmakuSpider.log("⏳ 视频播放中(" + playDuration + "ms)，等待达到" + MIN_PLAY_DURATION_BEFORE_PUSH + "ms");
+                    // 检查是否播放了足够长时间
+                    long playDuration = currentTime - videoPlayStartTime;
+                    if (playDuration >= YSC_MIN_PLAY_DURATION_BEFORE_PUSH) {
+                        DanmakuSpider.log("✅ 视频已播放" + playDuration + "ms，执行推送: " + key);
+                        executePendingPush(push, false);
+                        pendingPushes.remove(key);
+                    } else {
+                        DanmakuSpider.log("⏳ 视频播放中(" + playDuration + "ms)，等待达到" + YSC_MIN_PLAY_DURATION_BEFORE_PUSH + "ms");
+                    }
                 }
             } else {
                 DanmakuSpider.log("⏸️ 视频未播放，已等待" + waitTime + "ms，还剩" + (FORCE_PUSH_TIMEOUT - waitTime) + "ms将强制推送");
@@ -426,7 +453,14 @@ public class DanmakuScanner {
 
     // 判断是否为播放界面
     private static boolean isPlayerActivity(String className) {
-        return className.contains("videoactivity");
+        return className.contains("videoactivity") || className.contains("detailactivity");
+
+//        DanmakuSpider.log("className: " + className);
+
+//        return className.contains("videoactivity") ||
+//                className.contains("playeractivity") ||
+//                className.contains("ijkplayer") ||
+//                className.contains("exoplayer");
 
 //        return className.contains("player") || className.contains("video") ||
 //                className.contains("detail") || className.contains("play") ||
@@ -495,7 +529,7 @@ public class DanmakuScanner {
         }
 
         // 再处理空格部分
-        int spaceIndex = title.lastIndexOf(" ");
+        int spaceIndex = title.indexOf(" ");
         if (spaceIndex != -1) {
             title = title.substring(0, spaceIndex);
         }
@@ -1134,16 +1168,20 @@ public class DanmakuScanner {
 
     // 轻量级遍历寻找按钮锚点
     private static void traverseForButton(View view, int depth) {
-        if (view == null || depth > 12) return; // 增加深度限制，播放器UI可能比较深
+        if (view == null || depth > 15) {
+            DanmakuSpider.log("[按钮注入] 遍历结束，没有找到按钮锚点");
+            return; // 增加深度限制，播放器UI可能比较深
+        }
 
         if (view instanceof TextView) {
             TextView tv = (TextView) view;
             CharSequence cs = tv.getText();
-            if (cs != null && cs.length() > 0 && cs.length() < 20) { // 放宽长度限制
+            if (cs != null && cs.length() > 0) {
                 String text = cs.toString();
                 // 寻找合适的锚点按钮
-                if (text.equals("字幕") || text.equals("视轨") || text.equals("音轨")) {
-//                    DanmakuSpider.log("[按钮注入] 找到按钮锚点: " + text + " 深度: " + depth);
+                if (text.equals("硬解") || text.equals("软解")) {
+//                if (text.equals("硬解") || text.equals("软解") || text.equals("字幕") || text.equals("视轨") || text.equals("音轨")) {
+                    DanmakuSpider.log("[按钮注入] 找到按钮锚点: " + text + " 深度: " + depth);
                     if (view.getParent() instanceof ViewGroup) {
                         injectButton((ViewGroup) view.getParent(), tv);
                         return; // 找到一个就返回
@@ -1229,7 +1267,12 @@ public class DanmakuScanner {
                             DanmakuSpider.lastButtonClickTime = currentTime;
 
                             DanmakuSpider.log("[按钮点击] 打开搜索对话框");
-                            DanmakuUIHelper.showSearchDialog(activity, lastEpisodeInfo.getEpisodeName());
+
+                            String title = "";
+                            if (lastEpisodeInfo != null) {
+                                title = lastEpisodeInfo.getEpisodeName();
+                            }
+                            DanmakuUIHelper.showSearchDialog(activity, title);
                         }
                     }
                 });
