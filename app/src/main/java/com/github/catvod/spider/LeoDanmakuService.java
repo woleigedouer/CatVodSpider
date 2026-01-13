@@ -4,9 +4,8 @@ import android.app.Activity;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
-import android.widget.Toast;
 
-import com.github.catvod.bean.danmu.DanmakuItem;
+import com.github.catvod.spider.entity.DanmakuItem;
 import org.json.JSONArray;
 import org.json.JSONObject;
 

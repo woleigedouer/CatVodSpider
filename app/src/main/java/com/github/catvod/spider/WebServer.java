@@ -1,7 +1,7 @@
 package com.github.catvod.spider;
 
 import android.app.Activity;
-import com.github.catvod.bean.danmu.DanmakuItem;
+import com.github.catvod.spider.entity.DanmakuItem;
 import com.google.gson.Gson;
 import fi.iki.elonen.NanoHTTPD;
 

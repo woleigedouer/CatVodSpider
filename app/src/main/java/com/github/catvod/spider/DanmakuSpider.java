@@ -7,7 +7,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
 
-import com.github.catvod.bean.danmu.DanmakuItem;
+import com.github.catvod.spider.entity.DanmakuItem;
 
 import com.github.catvod.crawler.Spider;
 import com.github.catvod.crawler.SpiderDebug;

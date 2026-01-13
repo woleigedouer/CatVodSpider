@@ -1,7 +1,6 @@
 package com.github.catvod.spider;
 
-import com.github.catvod.bean.danmu.DanmakuItem;
-import android.text.TextUtils;
+import com.github.catvod.spider.entity.DanmakuItem;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
