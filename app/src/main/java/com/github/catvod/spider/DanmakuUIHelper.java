@@ -9,11 +9,13 @@ import android.graphics.Color;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
+import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.GridLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -67,7 +69,6 @@ public class DanmakuUIHelper {
     private static List<DanmakuItem> currentItems = new ArrayList<>();
 
 
-    // 显示配置对话框
     // 显示配置对话框
     public static void showConfigDialog(Context ctx) {
         // 添加检查
@@ -555,7 +556,7 @@ public class DanmakuUIHelper {
                     titleLayout.setPadding(dpToPx(activity, 20), dpToPx(activity, 16), dpToPx(activity, 20), dpToPx(activity, 16));
 
                     TextView titleText = new TextView(activity);
-                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-19 12:48");
+                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-19 13:34");
                     titleText.setTextSize(20);
                     titleText.setTextColor(Color.WHITE);
                     titleText.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -636,10 +637,6 @@ public class DanmakuUIHelper {
 
     // 显示搜索对话框
     public static void showSearchDialog(Activity activity, String initialKeyword) {
-        if (DanmakuSpider.danmakuStyle.equals("模板二")) {
-            DanmakuUIHelper2.showSearchDialog(activity, initialKeyword);
-            return;
-        }
         // 检查Activity状态
         if (activity.isFinishing() || activity.isDestroyed()) {
             DanmakuSpider.log("Activity已销毁或正在销毁，不显示搜索对话框");
@@ -982,7 +979,6 @@ public class DanmakuUIHelper {
     private static void showResultsForTab(LinearLayout resultContainer, List<DanmakuItem> items,
                                           Activity activity, AlertDialog dialog) {
         resultContainer.removeAllViews();
-
         currentItems = items;
 
         if (items == null || items.isEmpty()) {
@@ -1021,22 +1017,19 @@ public class DanmakuUIHelper {
 
         // 用于跟踪当前选中的分组按钮
         final java.util.Map<String, Button> groupButtons = new java.util.HashMap<>();
-
         java.util.List<String> animeTitles = new java.util.ArrayList<>(animeGroups.keySet());
         java.util.Collections.sort(animeTitles);
 
-        for (int groupIndex = 0; groupIndex < animeTitles.size(); groupIndex++) {
-            String animeTitle = animeTitles.get(groupIndex);
-            List<DanmakuItem> animeItems = animeGroups.get(animeTitle);
+        if (DanmakuSpider.danmakuStyle.equals("模板二")) {
+            // 使用网格布局
+            for (int groupIndex = 0; groupIndex < animeTitles.size(); groupIndex++) {
+                String animeTitle = animeTitles.get(groupIndex);
+                List<DanmakuItem> animeItems = animeGroups.get(animeTitle);
 
-            if (animeItems.size() == 1) {
-                DanmakuItem item = animeItems.get(0);
-                Button resultItem = createResultButton(activity, item, dialog);
-                resultContainer.addView(resultItem);
-            } else {
+                // 创建分组按钮
                 Button groupBtn = new Button(activity);
                 groupBtn.setText(animeTitle + " (" + animeItems.size() + "集)");
-                groupBtn.setPadding(20, 10, 20, 10);
+                groupBtn.setPadding(dpToPx(activity, 20), dpToPx(activity, 12), dpToPx(activity, 20), dpToPx(activity, 12));
                 groupBtn.setTextSize(14);
                 groupBtn.setTypeface(null, android.graphics.Typeface.BOLD);
 
@@ -1091,8 +1084,8 @@ public class DanmakuUIHelper {
                     }
                 });
 
-                // 添加展开/收起状态标记
-                int[] stateInfo = new int[]{0, 0}; // [isExpanded(0/1), childCount]
+                // 添加展开/收起状态标记和网格容器的引用
+                Object[] stateInfo = new Object[]{0, 0, null}; // [isExpanded(0/1), childCount, gridContainer]
                 groupBtn.setTag(stateInfo);
 
                 // 点击分组按钮展开/收起内容
@@ -1115,37 +1108,52 @@ public class DanmakuUIHelper {
                             }
                         }
 
-                        int[] currentStateInfo = (int[]) groupBtn.getTag();
-                        boolean isExpanded = currentStateInfo[0] == 1;
+                        Object[] currentStateInfo = (Object[]) groupBtn.getTag();
+                        boolean isExpanded = (Integer) currentStateInfo[0] == 1;
+                        GridLayout gridContainer = (GridLayout) currentStateInfo[2];
 
                         if (isExpanded) {
                             // 收起内容
-                            int buttonIndex = resultContainer.indexOfChild(groupBtn);
-                            int childCount = currentStateInfo[1];
-
-                            for (int i = 0; i < childCount; i++) {
-                                if (buttonIndex + 1 < resultContainer.getChildCount()) {
-                                    resultContainer.removeViewAt(buttonIndex + 1);
-                                }
+                            int groupBtnIndex = resultContainer.indexOfChild(groupBtn);
+                            if (groupBtnIndex + 1 < resultContainer.getChildCount()) {
+                                resultContainer.removeViewAt(groupBtnIndex + 1);
                             }
 
                             currentStateInfo[0] = 0; // 未展开
                             currentStateInfo[1] = 0; // 子项数量
+                            currentStateInfo[2] = null; // 清空网格容器引用
                             groupBtn.setText(animeTitle + " (" + animeItems.size() + "集)");
                         } else {
-                            // 展开内容
-                            int buttonIndex = resultContainer.indexOfChild(groupBtn);
+                            // 展开内容 - 创建网格布局
+                            int groupBtnIndex = resultContainer.indexOfChild(groupBtn);
 
                             sortResults(animeItems, isReversed);
 
-                            for (int i = 0; i < animeItems.size(); i++) {
-                                DanmakuItem item = animeItems.get(i);
-                                Button subItem = createResultButton(activity, item, dialog);                            subItem.setPadding(40, 8, 20, 8);
-                                resultContainer.addView(subItem, buttonIndex + 1 + i);
+                            // 创建网格布局容器
+                            GridLayout gridLayout = new GridLayout(activity);
+                            // 根据屏幕宽度动态计算列数
+                            DisplayMetrics displayMetrics = activity.getResources().getDisplayMetrics();
+                            int screenWidthPx = displayMetrics.widthPixels;
+                            int screenWidthDp = (int) (screenWidthPx / displayMetrics.density);
+                            int columns = Math.max(3, screenWidthDp / 120); // 每列约120dp
+                            gridLayout.setColumnCount(columns);
+                            gridLayout.setRowCount(GridLayout.UNDEFINED); // 行数自动计算
+                            gridLayout.setUseDefaultMargins(false);
+                            gridLayout.setPadding(dpToPx(activity, 20), dpToPx(activity, 12),
+                                    dpToPx(activity, 20), dpToPx(activity, 12));
+
+                            // 为每个剧集创建网格按钮
+                            for (DanmakuItem item : animeItems) {
+                                Button gridItem = createGridResultButton(activity, item, dialog);
+                                gridLayout.addView(gridItem);
                             }
+
+                            // 将网格布局添加到分组按钮后面
+                            resultContainer.addView(gridLayout, groupBtnIndex + 1);
 
                             currentStateInfo[0] = 1; // 已展开
                             currentStateInfo[1] = animeItems.size(); // 子项数量
+                            currentStateInfo[2] = gridLayout; // 保存网格容器引用
                             groupBtn.setText(animeTitle + " (" + animeItems.size() + "集) [-]");
                         }
                         groupBtn.setTag(currentStateInfo);
@@ -1165,51 +1173,227 @@ public class DanmakuUIHelper {
 
                 resultContainer.addView(groupBtn);
 
+                // 如果包含上次使用的URL，自动展开
                 if (groupsWithLastUrl.contains(animeTitle)) {
                     groupBtn.post(new Runnable() {
                         @Override
                         public void run() {
                             groupBtn.performClick();
-                            // 等待内容展开后再滚动到具体选中的子项
-                            resultContainer.post(new Runnable() {
+                            // 滚动到包含上次使用弹幕的项
+                            resultContainer.postDelayed(new Runnable() {
                                 @Override
                                 public void run() {
-                                    // 寻找包含lastDanmakuUrl的具体子项
-                                    View targetView = null;
-                                    for (int i = 0; i < resultContainer.getChildCount(); i++) {
-                                        View child = resultContainer.getChildAt(i);
-                                        if (child instanceof Button && child.getTag() instanceof DanmakuItem) {
-                                            DanmakuItem item = (DanmakuItem) child.getTag();
-                                            if (item.getDanmakuUrl() != null &&
-                                                    item.getDanmakuUrl().equals(DanmakuManager.lastDanmakuUrl)) {
-                                                targetView = child;
-                                                break;
+                                    Object[] stateInfo = (Object[]) groupBtn.getTag();
+                                    GridLayout gridContainer = (GridLayout) stateInfo[2];
+                                    if (gridContainer != null) {
+                                        // 在网格中寻找包含lastDanmakuUrl的按钮
+                                        for (int i = 0; i < gridContainer.getChildCount(); i++) {
+                                            View child = gridContainer.getChildAt(i);
+                                            if (child instanceof Button && child.getTag() instanceof DanmakuItem) {
+                                                DanmakuItem item = (DanmakuItem) child.getTag();
+                                                if (item.getDanmakuUrl() != null &&
+                                                        item.getDanmakuUrl().equals(DanmakuManager.lastDanmakuUrl)) {
+                                                    // 请求焦点
+                                                    child.requestFocus();
+                                                    break;
+                                                }
                                             }
                                         }
                                     }
-
-                                    if (resultContainer.getParent() instanceof ScrollView) {
-                                        ScrollView scrollView = (ScrollView) resultContainer.getParent();
-                                        View finalTargetView = targetView;
-                                        scrollView.post(new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                if (finalTargetView != null) {
-                                                    // 滚动到具体选中的结果项
-                                                    int scrollY = resultContainer.getTop() + finalTargetView.getTop();
-                                                    scrollView.smoothScrollTo(0, scrollY);
-                                                } else {
-                                                    // 如果找不到目标项，滚动到分组按钮
-                                                    int scrollY = resultContainer.getTop() + groupBtn.getTop();
-                                                    scrollView.smoothScrollTo(0, scrollY);
-                                                }
-                                            }
-                                        });
-                                    }
                                 }
-                            });
+                            }, 100);
                         }
                     });
+                }
+            }
+        } else {
+            // 使用列表布局
+            for (int groupIndex = 0; groupIndex < animeTitles.size(); groupIndex++) {
+                String animeTitle = animeTitles.get(groupIndex);
+                List<DanmakuItem> animeItems = animeGroups.get(animeTitle);
+
+                if (animeItems.size() == 1) {
+                    DanmakuItem item = animeItems.get(0);
+                    Button resultItem = createResultButton(activity, item, dialog);
+                    resultContainer.addView(resultItem);
+                } else {
+                    Button groupBtn = new Button(activity);
+                    groupBtn.setText(animeTitle + " (" + animeItems.size() + "集)");
+                    groupBtn.setPadding(20, 10, 20, 10);
+                    groupBtn.setTextSize(14);
+                    groupBtn.setTypeface(null, android.graphics.Typeface.BOLD);
+
+                    // 初始设置选中状态 - 第二层级：橙色
+                    if (groupsWithLastUrl.contains(animeTitle)) {
+                        groupBtn.setBackground(createRoundedBackgroundDrawable(SECONDARY_COLOR));
+                        groupBtn.setTextColor(Color.WHITE);
+                    } else {
+                        groupBtn.setBackground(createRoundedBackgroundDrawable(0xFFE8E8E8));
+                        groupBtn.setTextColor(TEXT_PRIMARY);
+                    }
+
+                    groupBtn.setClickable(true);
+                    groupBtn.setFocusable(true);
+
+                    // 保存按钮引用，用于管理选中状态
+                    groupButtons.put(animeTitle, groupBtn);
+
+                    // 添加焦点效果 - 第二层级：深橙色焦点
+                    groupBtn.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                        @Override
+                        public void onFocusChange(View v, boolean hasFocus) {
+                            Button button = (Button) v;
+                            String title = null;
+
+                            // 找到对应的标题
+                            for (java.util.Map.Entry<String, Button> entry : groupButtons.entrySet()) {
+                                if (entry.getValue() == v) {
+                                    title = entry.getKey();
+                                    break;
+                                }
+                            }
+
+                            if (hasFocus) {
+                                // 获得焦点时显示深橙色高亮
+                                v.setBackground(createRoundedBackgroundDrawable(SECONDARY_DARK));
+                                button.setTextColor(Color.WHITE);
+                                v.setScaleX(1.06f);
+                                v.setScaleY(1.06f);
+                            } else {
+                                // 失去焦点时，恢复到原始选中状态颜色
+                                if (groupsWithLastUrl.contains(title)) {
+                                    v.setBackground(createRoundedBackgroundDrawable(SECONDARY_COLOR));
+                                    button.setTextColor(Color.WHITE);
+                                } else {
+                                    v.setBackground(createRoundedBackgroundDrawable(0xFFE8E8E8));
+                                    button.setTextColor(TEXT_PRIMARY);
+                                }
+                                v.setScaleX(1.0f);
+                                v.setScaleY(1.0f);
+                            }
+                        }
+                    });
+
+                    // 添加展开/收起状态标记
+                    int[] stateInfo = new int[]{0, 0}; // [isExpanded(0/1), childCount]
+                    groupBtn.setTag(stateInfo);
+
+                    // 点击分组按钮展开/收起内容
+                    groupBtn.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            // 点击时更新选中状态 - 只有当前按钮保持选中状态(橙色)
+                            for (java.util.Map.Entry<String, Button> entry : groupButtons.entrySet()) {
+                                Button otherBtn = entry.getValue();
+                                if (otherBtn == v) {
+                                    // 当前按钮选中 - 橙色
+                                    otherBtn.setBackground(createRoundedBackgroundDrawable(SECONDARY_COLOR));
+                                    otherBtn.setTextColor(Color.WHITE);
+                                    groupsWithLastUrl.clear();
+                                    groupsWithLastUrl.add(entry.getKey());
+                                } else {
+                                    // 其他按钮取消选中 - 灰色
+                                    otherBtn.setBackground(createRoundedBackgroundDrawable(0xFFE8E8E8));
+                                    otherBtn.setTextColor(TEXT_PRIMARY);
+                                }
+                            }
+
+                            int[] currentStateInfo = (int[]) groupBtn.getTag();
+                            boolean isExpanded = currentStateInfo[0] == 1;
+
+                            if (isExpanded) {
+                                // 收起内容
+                                int buttonIndex = resultContainer.indexOfChild(groupBtn);
+                                int childCount = currentStateInfo[1];
+
+                                for (int i = 0; i < childCount; i++) {
+                                    if (buttonIndex + 1 < resultContainer.getChildCount()) {
+                                        resultContainer.removeViewAt(buttonIndex + 1);
+                                    }
+                                }
+
+                                currentStateInfo[0] = 0; // 未展开
+                                currentStateInfo[1] = 0; // 子项数量
+                                groupBtn.setText(animeTitle + " (" + animeItems.size() + "集)");
+                            } else {
+                                // 展开内容
+                                int buttonIndex = resultContainer.indexOfChild(groupBtn);
+
+                                sortResults(animeItems, isReversed);
+
+                                for (int i = 0; i < animeItems.size(); i++) {
+                                    DanmakuItem item = animeItems.get(i);
+                                    Button subItem = createResultButton(activity, item, dialog);                            subItem.setPadding(40, 8, 20, 8);
+                                    resultContainer.addView(subItem, buttonIndex + 1 + i);
+                                }
+
+                                currentStateInfo[0] = 1; // 已展开
+                                currentStateInfo[1] = animeItems.size(); // 子项数量
+                                groupBtn.setText(animeTitle + " (" + animeItems.size() + "集) [-]");
+                            }
+                            groupBtn.setTag(currentStateInfo);
+
+                            if (resultContainer.getParent() instanceof ScrollView) {
+                                ScrollView scrollView = (ScrollView) resultContainer.getParent();
+                                scrollView.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        int scrollY = resultContainer.getTop() + groupBtn.getTop();
+                                        scrollView.smoothScrollTo(0, scrollY);
+                                    }
+                                });
+                            }
+                        }
+                    });
+
+                    resultContainer.addView(groupBtn);
+
+                    if (groupsWithLastUrl.contains(animeTitle)) {
+                        groupBtn.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                groupBtn.performClick();
+                                // 等待内容展开后再滚动到具体选中的子项
+                                resultContainer.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        // 寻找包含lastDanmakuUrl的具体子项
+                                        View targetView = null;
+                                        for (int i = 0; i < resultContainer.getChildCount(); i++) {
+                                            View child = resultContainer.getChildAt(i);
+                                            if (child instanceof Button && child.getTag() instanceof DanmakuItem) {
+                                                DanmakuItem item = (DanmakuItem) child.getTag();
+                                                if (item.getDanmakuUrl() != null &&
+                                                        item.getDanmakuUrl().equals(DanmakuManager.lastDanmakuUrl)) {
+                                                    targetView = child;
+                                                    break;
+                                                }
+                                            }
+                                        }
+
+                                        if (resultContainer.getParent() instanceof ScrollView) {
+                                            ScrollView scrollView = (ScrollView) resultContainer.getParent();
+                                            View finalTargetView = targetView;
+                                            scrollView.post(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    if (finalTargetView != null) {
+                                                        // 滚动到具体选中的结果项
+                                                        int scrollY = resultContainer.getTop() + finalTargetView.getTop();
+                                                        scrollView.smoothScrollTo(0, scrollY);
+                                                    } else {
+                                                        // 如果找不到目标项，滚动到分组按钮
+                                                        int scrollY = resultContainer.getTop() + groupBtn.getTop();
+                                                        scrollView.smoothScrollTo(0, scrollY);
+                                                    }
+                                                }
+                                            });
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    }
                 }
             }
         }
@@ -1298,6 +1482,154 @@ public class DanmakuUIHelper {
                 DanmakuSpider.recordDanmakuUrl(selected, false);
                 LeoDanmakuService.pushDanmakuDirect(selected, activity, false);
                 dialog.dismiss();
+            }
+        });
+
+        return resultItem;
+    }
+
+    // 创建网格布局结果按钮的辅助方法
+    private static Button createGridResultButton(Activity activity, DanmakuItem item, AlertDialog dialog) {
+        Button resultItem = new Button(activity);
+        resultItem.setFocusable(true);
+        resultItem.setFocusableInTouchMode(true);
+        resultItem.setClickable(true);
+
+        // 缩短文本显示，适合网格布局
+        String displayText = item.epTitle;
+        if (displayText == null || displayText.isEmpty()) {
+            displayText = item.title;
+        }
+
+        // 根据屏幕宽度动态计算列数，并相应调整文本长度
+        DisplayMetrics displayMetrics = activity.getResources().getDisplayMetrics();
+        int screenWidthDp = (int)(displayMetrics.widthPixels / displayMetrics.density);
+
+        int columns = 4; // 默认4列
+        if (screenWidthDp < 480) { // 小屏幕
+            columns = 3;
+        } else if (screenWidthDp > 720) { // 大屏幕
+            columns = 5;
+        }
+
+        // 根据列数动态调整文本长度
+        int maxLength = 20;
+        if (columns == 3) {
+            maxLength = 25; // 列数少，可以显示更长文本
+        } else if (columns == 5) {
+            maxLength = 15; // 列数多，需要更短文本
+        }
+
+        if (displayText.length() > maxLength) {
+            displayText = displayText.substring(0, maxLength) + "...";
+        }
+
+        resultItem.setText(displayText);
+        resultItem.setTextSize(13); // 增大字号
+
+        // 设置内边距 - 允许多行文本显示
+        int padding = dpToPx(activity, 10);
+        resultItem.setPadding(padding, padding, padding, padding);
+
+        // 允许多行显示
+        resultItem.setMaxLines(2); // 最多显示2行
+        resultItem.setEllipsize(TextUtils.TruncateAt.END);
+        resultItem.setSingleLine(false); // 允许多行显示
+
+        // 设置文本居中
+        resultItem.setGravity(Gravity.CENTER);
+
+        // 安全设置工具提示（完整标题）- 仅在 API 26+ 可用
+        // 添加版本检查避免在低版本上崩溃
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            resultItem.setTooltipText(item.getTitleWithEp());
+        }
+        // 对于低版本，我们已经有长按显示完整标题的功能，所以不影响用户体验
+
+        // 设置圆角背景 - 第三层级：绿色
+        String currentDanmakuUrl = item.getDanmakuUrl();
+        if (currentDanmakuUrl != null && currentDanmakuUrl.equals(DanmakuManager.lastDanmakuUrl)) {
+            // 高亮显示 - 使用绿色背景
+            resultItem.setBackground(createRoundedBackgroundDrawable(TERTIARY_COLOR));
+            resultItem.setTextColor(Color.WHITE);
+        } else {
+            // 普通显示
+            resultItem.setBackground(createRoundedBackgroundDrawable(0xFFF0F0F0));
+            resultItem.setTextColor(TEXT_PRIMARY);
+        }
+
+        // 设置网格布局参数 - 使用权重实现等宽布局
+        GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+
+        // 宽度设置为0，由权重控制，实现等宽效果
+        params.width = 0;
+
+        // 高度自适应内容
+        params.height = GridLayout.LayoutParams.WRAP_CONTENT;
+
+        // 列规范：每个按钮占据一列，权重为1，实现等宽
+        params.columnSpec = GridLayout.spec(
+                GridLayout.UNDEFINED,  // 列索引（自动分配）
+                1f                     // 权重为1，等宽分配
+        );
+
+        // 行规范：高度自适应内容
+        params.rowSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+
+        // 设置外边距
+        int margin = dpToPx(activity, 6);
+        params.setMargins(margin, margin, margin, margin);
+
+        resultItem.setLayoutParams(params);
+        resultItem.setTag(item);
+
+        resultItem.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                if (hasFocus) {
+                    // 获得焦点时的高亮效果 - 深绿色
+                    v.setBackground(createRoundedBackgroundDrawable(TERTIARY_DARK));
+                    ((Button) v).setTextColor(Color.WHITE);
+                    v.setScaleX(1.05f);
+                    v.setScaleY(1.05f);
+                } else {
+                    // 失去焦点时的恢复逻辑
+                    DanmakuItem item_tag = (DanmakuItem) v.getTag();
+                    String danmakuUrl = item_tag.getDanmakuUrl();
+
+                    // 检查是否为上次使用的弹幕URL，如果是则保持高亮状态
+                    if (danmakuUrl != null && danmakuUrl.equals(DanmakuManager.lastDanmakuUrl)) {
+                        v.setBackground(createRoundedBackgroundDrawable(TERTIARY_COLOR));
+                        ((Button) v).setTextColor(Color.WHITE);
+                    } else {
+                        // 普通状态
+                        v.setBackground(createRoundedBackgroundDrawable(0xFFF0F0F0));
+                        ((Button) v).setTextColor(TEXT_PRIMARY);
+                    }
+                    v.setScaleX(1.0f);
+                    v.setScaleY(1.0f);
+                }
+            }
+        });
+
+        resultItem.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v1) {
+                DanmakuItem selected = (DanmakuItem) v1.getTag();
+                // 记录弹幕URL
+                DanmakuSpider.recordDanmakuUrl(selected, false);
+                LeoDanmakuService.pushDanmakuDirect(selected, activity, false);
+                dialog.dismiss();
+            }
+        });
+
+        // 长按显示完整标题 - 这个功能在所有版本上都可用
+        resultItem.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                DanmakuItem item = (DanmakuItem) v.getTag();
+                Utils.safeShowToast(activity, item.getTitleWithEp());
+                return true;
             }
         });
 
