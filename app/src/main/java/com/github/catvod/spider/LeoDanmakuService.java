@@ -117,20 +117,20 @@ public class LeoDanmakuService {
         List<DanmakuItem> list = new ArrayList<>();
         try {
             // 尝试多种API路径
-            String searchUrl = apiBase + "/api/v2/search/episodes?anime=" + 
+            String searchUrl = apiBase + "/api/v2/search/episodes?anime=" +
                 URLEncoder.encode(keyword, "UTF-8");
             DanmakuSpider.log("搜索URL: " + searchUrl);
-            
+
             String json = NetworkUtils.robustHttpGet(searchUrl);
-            
+
             // 回退到旧API
             if (TextUtils.isEmpty(json)) {
-                searchUrl = apiBase + "/search/episodes?anime=" + 
+                searchUrl = apiBase + "/search/episodes?anime=" +
                     URLEncoder.encode(keyword, "UTF-8");
                 DanmakuSpider.log("回退搜索URL: " + searchUrl);
                 json = NetworkUtils.robustHttpGet(searchUrl);
             }
-            
+
             if (TextUtils.isEmpty(json)) {
                 DanmakuSpider.log("搜索响应为空");
                 return list;
@@ -139,7 +139,7 @@ public class LeoDanmakuService {
             // 解析JSON
             JSONArray array = null;
             JSONObject rootOpt = null;
-            
+
             if (json.trim().startsWith("[")) {
                 array = new JSONArray(json);
             } else {
@@ -147,12 +147,12 @@ public class LeoDanmakuService {
                 if (rootOpt.has("episodes")) array = rootOpt.optJSONArray("episodes");
                 else if (rootOpt.has("animes")) array = rootOpt.optJSONArray("animes");
             }
-            
+
             if (array == null) {
                 DanmakuSpider.log("未找到episodes/animes数组");
                 return list;
             }
-            
+
             // 判断数据结构
             boolean isAnimeList = false;
             if (array.length() > 0) {
@@ -164,14 +164,14 @@ public class LeoDanmakuService {
                     isAnimeList = true;
                 }
             }
-            
+
             if (isAnimeList) {
                 // 嵌套结构
                 for (int i = 0; i < array.length(); i++) {
                     JSONObject anime = array.optJSONObject(i);
                     String animeTitle = anime.optString("animeTitle");
                     if (TextUtils.isEmpty(animeTitle)) animeTitle = anime.optString("title");
-                    
+
                     JSONArray eps = anime.optJSONArray("episodes");
                     if (eps != null) {
                         for (int j = 0; j < eps.length(); j++) {
@@ -191,26 +191,26 @@ public class LeoDanmakuService {
             DanmakuSpider.log("搜索解析错误: " + e.getMessage());
             e.printStackTrace();
         }
-        
+
         return list;
     }
-    
+
     // 处理单集数据
     private static void processEpisode(JSONObject ep, String forcedTitle, String apiBase, List<DanmakuItem> list) {
         String animeTitle = forcedTitle;
         if (TextUtils.isEmpty(animeTitle)) animeTitle = ep.optString("animeTitle");
         if (TextUtils.isEmpty(animeTitle)) animeTitle = ep.optString("title");
         if (TextUtils.isEmpty(animeTitle)) animeTitle = ep.optString("name");
-        
+
         String epTitle = ep.optString("episodeTitle");
         if (TextUtils.isEmpty(epTitle)) epTitle = ep.optString("epTitle");
-        
+
         int epId = ep.optInt("episodeId", ep.optInt("epId", ep.optInt("id")));
-        
+
         if (TextUtils.isEmpty(animeTitle)) {
             return;
         }
-        
+
         DanmakuItem item = new DanmakuItem();
         item.title = animeTitle;
         item.epTitle = epTitle;
@@ -224,6 +224,8 @@ public class LeoDanmakuService {
                 item.from = fromPart;
                 item.animeTitle = parts[0].trim();
             }
+        } else {
+            item.animeTitle = animeTitle;
         }
 
 
@@ -233,15 +235,15 @@ public class LeoDanmakuService {
         if (temp.startsWith("-") || temp.startsWith("_")) {
             temp = temp.substring(1).trim();
         }
-        
+
         item.shortTitle = temp;
         if (TextUtils.isEmpty(item.shortTitle)) {
             item.shortTitle = epTitle;
         }
-        
+
         list.add(item);
     }
-    
+
     // 自动搜索
     public static boolean autoSearch(EpisodeInfo episodeInfo, Activity activity) {
         if (TextUtils.isEmpty(episodeInfo.getEpisodeName())) return false;
@@ -300,7 +302,7 @@ public class LeoDanmakuService {
                     List<DanmakuItem> results = searchDanmaku(episodeInfo.getEpisodeName(), activity);
 
                     if (!results.isEmpty()) {
-                        int matchedIndex = -1;
+                        List<DanmakuItem> matchedItems = new ArrayList<>();
                         for (int i = 0; i < results.size(); i++) {
                             DanmakuItem item = results.get(i);
 
@@ -335,16 +337,32 @@ public class LeoDanmakuService {
                             }
 
                             if (isMatch) {
-                                matchedIndex = i;
-                                break; // 找到匹配项，立即退出循环
+                                matchedItems.add(item);
                             }
                         }
 
                         // 如果找到匹配项，使用匹配项；否则使用第一条
                         DanmakuItem selectedItem;
-                        if (matchedIndex != -1) {
-                            selectedItem = results.get(matchedIndex);
-                            DanmakuSpider.log("🎯 找到匹配的弹幕项: " + selectedItem.title + " - " + selectedItem.epTitle);
+                        if (!matchedItems.isEmpty()) {
+                            if (matchedItems.size() == 1) {
+                                selectedItem = matchedItems.get(0);
+                                DanmakuSpider.log("🎯 找到唯一匹配的弹幕项: " + selectedItem.title + " - " + selectedItem.epTitle);
+                            } else {
+                                // 多个匹配项，计算相似度
+                                DanmakuItem bestMatch = null;
+                                double highestSimilarity = -1.0;
+
+                                for (DanmakuItem item : matchedItems) {
+                                    String titleToCompare = item.getAnimeTitle() != null ? item.getAnimeTitle() : item.getTitle();
+                                    double similarity = calculateSimilarity(titleToCompare, episodeInfo.getEpisodeName());
+                                    if (similarity > highestSimilarity) {
+                                        highestSimilarity = similarity;
+                                        bestMatch = item;
+                                    }
+                                }
+                                selectedItem = bestMatch;
+                                DanmakuSpider.log("🎯 找到多个匹配项，选择相似度最高的: " + selectedItem.title + " - " + selectedItem.epTitle + " (相似度: " + highestSimilarity + ")");
+                            }
                         } else {
                             selectedItem = results.get(0); // 使用第一条作为默认选项
                             DanmakuSpider.log("⚠️ 未找到精确匹配，使用第一条结果: " + selectedItem.title + " - " + selectedItem.epTitle);
@@ -392,13 +410,54 @@ public class LeoDanmakuService {
 
         return found[0];
     }
-    
+
+    private static double calculateSimilarity(String s1, String s2) {
+        String longer = s1, shorter = s2;
+        if (s1.length() < s2.length()) {
+            longer = s2;
+            shorter = s1;
+        }
+        int longerLength = longer.length();
+        if (longerLength == 0) {
+            return 1.0;
+        }
+        return (longerLength - editDistance(longer, shorter)) / (double) longerLength;
+    }
+
+    private static int editDistance(String s1, String s2) {
+        s1 = s1.toLowerCase();
+        s2 = s2.toLowerCase();
+
+        int[] costs = new int[s2.length() + 1];
+        for (int i = 0; i <= s1.length(); i++) {
+            int lastValue = i;
+            for (int j = 0; j <= s2.length(); j++) {
+                if (i == 0) {
+                    costs[j] = j;
+                } else {
+                    if (j > 0) {
+                        int newValue = costs[j - 1];
+                        if (s1.charAt(i - 1) != s2.charAt(j - 1)) {
+                            newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+                        }
+                        costs[j - 1] = lastValue;
+                        lastValue = newValue;
+                    }
+                }
+            }
+            if (i > 0) {
+                costs[s2.length()] = lastValue;
+            }
+        }
+        return costs[s2.length()];
+    }
+
     // 手动搜索
     public static List<DanmakuItem> manualSearch(String keyword, Activity activity) {
         List<DanmakuItem> results = new ArrayList<>();
-        
+
         if (TextUtils.isEmpty(keyword)) return results;
-        
+
         try {
             String cleanKeyword = DanmakuUtils.extractTitle(keyword);
             if (!TextUtils.isEmpty(cleanKeyword)) {
@@ -407,10 +466,10 @@ public class LeoDanmakuService {
         } catch (Exception e) {
             DanmakuSpider.log("手动搜索失败: " + e.getMessage());
         }
-        
+
         return results;
     }
-    
+
     // 直接推送弹幕URL
     public static void pushDanmakuDirect(DanmakuItem danmakuItem, Activity activity, boolean isAuto) {
         // 防重复推送检查
