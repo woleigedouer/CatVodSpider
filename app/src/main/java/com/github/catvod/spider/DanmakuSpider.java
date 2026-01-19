@@ -39,6 +39,7 @@ public class DanmakuSpider extends Spider {
     public static long lastButtonClickTime = 0;// 在 DanmakuSpider 类中添加自动推送状态变量
 
     public static boolean autoPushEnabled = false; // 自动推送状态，默认关闭
+    public static String danmakuStyle = "模板一"; // 弹幕UI风格，默认模板一
 
     // 添加保存和加载自动推送状态的方法
     private static void saveAutoPushState(Context context) {
@@ -57,6 +58,25 @@ public class DanmakuSpider extends Spider {
             log("加载自动推送状态: " + autoPushEnabled);
         } catch (Exception e) {
             log("加载自动推送状态失败: " + e.getMessage());
+        }
+    }
+
+    private static void saveDanmakuStyle(Context context) {
+        try {
+            SharedPreferences prefs = context.getSharedPreferences("danmaku_prefs", Context.MODE_PRIVATE);
+            prefs.edit().putString("danmaku_style", danmakuStyle).apply();
+        } catch (Exception e) {
+            log("保存弹幕UI风格失败: " + e.getMessage());
+        }
+    }
+
+    private static void loadDanmakuStyle(Context context) {
+        try {
+            SharedPreferences prefs = context.getSharedPreferences("danmaku_prefs", Context.MODE_PRIVATE);
+            danmakuStyle = prefs.getString("danmaku_style", "模板一");
+            log("加载弹幕UI风格: " + danmakuStyle);
+        } catch (Exception e) {
+            log("加载弹幕UI风格失败: " + e.getMessage());
         }
     }
 
@@ -126,6 +146,7 @@ public class DanmakuSpider extends Spider {
 
         // 加载自动推送状态
         loadAutoPushState(context);
+        loadDanmakuStyle(context);
 
         // 显示启动提示
 //        Activity act = Utils.getTopActivity();
@@ -235,6 +256,11 @@ public class DanmakuSpider extends Spider {
             JSONObject lpConfigVod = createVod("lp_config", "布局配置", "", "调整弹窗大小和透明度");
             list.put(lpConfigVod);
 
+            // 创建弹幕UI风格切换按钮
+            JSONObject styleVod = createVod("danmaku_style", "弹幕UI风格", "",
+                    "当前: " + danmakuStyle);
+            list.put(styleVod);
+
             result.put("list", list);
             result.put("page", 1);
             result.put("pagecount", 1);
@@ -279,6 +305,21 @@ public class DanmakuSpider extends Spider {
                                     DanmakuUIHelper.showLogDialog(ctx);
                                 } else if (id.equals("lp_config")) {
                                     DanmakuUIHelper.showLpConfigDialog(ctx);
+                                } else if (id.equals("danmaku_style")) {
+                                    // 切换弹幕UI风格
+                                    if (danmakuStyle.equals("模板一")) {
+                                        danmakuStyle = "模板二";
+                                    } else {
+                                        danmakuStyle = "模板一";
+                                    }
+                                    saveDanmakuStyle(ctx);
+
+                                    // 更新UI显示
+                                    DanmakuSpider.log("弹幕UI风格切换: " + danmakuStyle);
+                                    Utils.safeShowToast(ctx, "弹幕UI风格已切换为: " + danmakuStyle);
+
+                                    // 重新加载页面以更新状态显示
+                                    refreshCategoryContent(ctx);
                                 }
                             } catch (Exception e) {
                                 DanmakuSpider.log("显示对话框失败: " + e.getMessage());
@@ -295,11 +336,13 @@ public class DanmakuSpider extends Spider {
             JSONObject vod = new JSONObject();
             vod.put("vod_id", id);
             vod.put("vod_name", id.equals("auto_push") ? "自动推送弹幕" :
-                    id.equals("log") ? "查看日志" : id.equals("lp_config") ? "布局配置" : "Leo弹幕设置");
+                    id.equals("log") ? "查看日志" : id.equals("lp_config") ? "布局配置" :
+                            id.equals("danmaku_style") ? "弹幕UI风格" : "Leo弹幕设置");
             vod.put("vod_pic", "");
             vod.put("vod_remarks", id.equals("auto_push") ?
                     (autoPushEnabled ? "已开启" : "已关闭") :
-                    id.equals("log") ? "调试信息" : id.equals("lp_config") ? "调整弹窗大小和透明度" : "请稍候...");
+                    id.equals("log") ? "调试信息" : id.equals("lp_config") ? "调整弹窗大小和透明度" :
+                            id.equals("danmaku_style") ? "当前: " + danmakuStyle : "请稍候...");
             vod.put("vod_play_url", "");
             vod.put("vod_play_from", "");
             JSONObject result = new JSONObject();
@@ -325,7 +368,8 @@ public class DanmakuSpider extends Spider {
                     JSONObject item = list.getJSONObject(i);
                     if ("auto_push".equals(item.getString("vod_id"))) {
                         item.put("vod_remarks", autoPushEnabled ? "已开启" : "已关闭");
-                        break;
+                    } else if ("danmaku_style".equals(item.getString("vod_id"))) {
+                        item.put("vod_remarks", "当前: " + danmakuStyle);
                     }
                 }
             }

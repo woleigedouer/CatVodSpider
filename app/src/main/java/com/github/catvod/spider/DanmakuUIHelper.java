@@ -555,7 +555,7 @@ public class DanmakuUIHelper {
                     titleLayout.setPadding(dpToPx(activity, 20), dpToPx(activity, 16), dpToPx(activity, 20), dpToPx(activity, 16));
 
                     TextView titleText = new TextView(activity);
-                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-13 23:09");
+                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-19 12:48");
                     titleText.setTextSize(20);
                     titleText.setTextColor(Color.WHITE);
                     titleText.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -636,6 +636,10 @@ public class DanmakuUIHelper {
 
     // 显示搜索对话框
     public static void showSearchDialog(Activity activity, String initialKeyword) {
+        if (DanmakuSpider.danmakuStyle.equals("模板二")) {
+            DanmakuUIHelper2.showSearchDialog(activity, initialKeyword);
+            return;
+        }
         // 检查Activity状态
         if (activity.isFinishing() || activity.isDestroyed()) {
             DanmakuSpider.log("Activity已销毁或正在销毁，不显示搜索对话框");
