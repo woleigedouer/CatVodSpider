@@ -556,7 +556,7 @@ public class DanmakuUIHelper {
                     titleLayout.setPadding(dpToPx(activity, 20), dpToPx(activity, 16), dpToPx(activity, 20), dpToPx(activity, 16));
 
                     TextView titleText = new TextView(activity);
-                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-19 13:52");
+                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-19 14:57");
                     titleText.setTextSize(20);
                     titleText.setTextColor(Color.WHITE);
                     titleText.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -1498,10 +1498,11 @@ public class DanmakuUIHelper {
         resultItem.setClickable(true);
 
         // 缩短文本显示，适合网格布局
-        String displayText = item.epTitle;
-        if (displayText == null || displayText.isEmpty()) {
-            displayText = item.title;
+        String displayText = DanmakuScanner.extractEpisodeNum(item.epTitle);
+        if (TextUtils.isEmpty(displayText)) {
+            displayText = item.epTitle; // fallback to original
         }
+
 
         // 根据屏幕宽度动态计算列数，并相应调整文本长度
         DisplayMetrics displayMetrics = activity.getResources().getDisplayMetrics();

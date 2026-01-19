@@ -588,7 +588,7 @@ public class DanmakuScanner {
     }
 
     // 提取集数
-    private static String extractEpisodeNum(String title) {
+    public static String extractEpisodeNum(String title) {
         if (TextUtils.isEmpty(title)) {
             return "";
         }
