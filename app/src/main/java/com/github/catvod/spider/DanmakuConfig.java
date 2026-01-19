@@ -1,5 +1,7 @@
 package com.github.catvod.spider;
 
+import org.json.JSONObject;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -7,19 +9,61 @@ import java.util.Set;
  * 弹幕配置实体类
  */
 public class DanmakuConfig {
+    /**
+     * 弹幕API地址
+     */
     public Set<String> apiUrls;
+    /**
+     * 弹幕搜索框宽度比例
+     */
     public float lpWidth;
+    /**
+     * 弹幕搜索框高度比例
+     */
     public float lpHeight;
+    /**
+     * 弹幕搜索框透明度
+     */
     public float lpAlpha;
+    /**
+     * 自动推送弹幕开关
+     */
     public boolean autoPushEnabled;
+    /**
+     * 弹幕搜索框样式
+     */
+    public String danmakuStyle;
 
     public DanmakuConfig() {
         // 设置默认值
         apiUrls = new HashSet<>();
         lpWidth = 0.9f;
         lpHeight = 0.85f;
-        lpAlpha = 0.8f;
+        lpAlpha = 0.9f;
         autoPushEnabled = false;
+        danmakuStyle = "模板一";
+    }
+
+    public void updateFromJson(JSONObject json) {
+        if (json == null) return;
+        if (json.has("apiUrl")) {
+            apiUrls.add(json.optString("apiUrl"));
+        }
+        if (json.has("lpWidth")) {
+            setLpWidth((float) json.optDouble("lpWidth", lpWidth));
+        }
+        if (json.has("lpHeight")) {
+            setLpHeight((float) json.optDouble("lpHeight", lpHeight));
+        }
+        if (json.has("lpAlpha")) {
+            setLpAlpha((float) json.optDouble("lpAlpha", lpAlpha));
+        }
+        if (json.has("autoPushEnabled")) {
+            setAutoPushEnabled(json.optBoolean("autoPushEnabled", autoPushEnabled));
+        }
+        if (json.has("danmakuStyle")) {
+            setDanmakuStyle(json.optString("danmakuStyle", danmakuStyle));
+        }
     }
 
     public Set<String> getApiUrls() {
@@ -60,5 +104,13 @@ public class DanmakuConfig {
 
     public void setAutoPushEnabled(boolean autoPushEnabled) {
         this.autoPushEnabled = autoPushEnabled;
+    }
+
+    public String getDanmakuStyle() {
+        return danmakuStyle;
+    }
+
+    public void setDanmakuStyle(String danmakuStyle) {
+        this.danmakuStyle = danmakuStyle;
     }
 }

@@ -556,7 +556,7 @@ public class DanmakuUIHelper {
                     titleLayout.setPadding(dpToPx(activity, 20), dpToPx(activity, 16), dpToPx(activity, 20), dpToPx(activity, 16));
 
                     TextView titleText = new TextView(activity);
-                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-19 13:34");
+                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-19 13:52");
                     titleText.setTextSize(20);
                     titleText.setTextColor(Color.WHITE);
                     titleText.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -1020,7 +1020,9 @@ public class DanmakuUIHelper {
         java.util.List<String> animeTitles = new java.util.ArrayList<>(animeGroups.keySet());
         java.util.Collections.sort(animeTitles);
 
-        if (DanmakuSpider.danmakuStyle.equals("模板二")) {
+        DanmakuConfig config = DanmakuConfigManager.getConfig(activity);
+
+        if (config.getDanmakuStyle().equals("模板二")) {
             // 使用网格布局
             for (int groupIndex = 0; groupIndex < animeTitles.size(); groupIndex++) {
                 String animeTitle = animeTitles.get(groupIndex);

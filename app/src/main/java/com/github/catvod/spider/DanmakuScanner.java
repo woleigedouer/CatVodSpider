@@ -161,8 +161,10 @@ public class DanmakuScanner {
                                     return;
                                 }
 
+                                DanmakuConfig config = DanmakuConfigManager.getConfig(act);
+
                                 // 检测是否开启自动查询或者已经手动查询过
-                                if (!DanmakuSpider.autoPushEnabled && TextUtils.isEmpty(DanmakuManager.lastManualDanmakuUrl)) {
+                                if (!config.isAutoPushEnabled() && TextUtils.isEmpty(DanmakuManager.lastManualDanmakuUrl)) {
                                     return;
                                 }
 
@@ -1472,8 +1474,10 @@ public class DanmakuScanner {
     }
 
     private static void startAutoSearch(EpisodeInfo episodeInfo, final Activity activity) {
+        DanmakuConfig config = DanmakuConfigManager.getConfig(activity);
+
         // 检查自动推送状态
-        if (!DanmakuSpider.autoPushEnabled) {
+        if (!config.isAutoPushEnabled()) {
             DanmakuSpider.log("❌ 自动推送已关闭，跳过自动搜索");
             return;
         }

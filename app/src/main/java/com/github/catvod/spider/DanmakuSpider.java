@@ -2,7 +2,6 @@ package com.github.catvod.spider;
 
 import android.app.Activity;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
@@ -18,9 +17,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Objects;
 
 public class DanmakuSpider extends Spider {
 
@@ -36,50 +34,7 @@ public class DanmakuSpider extends Spider {
     /**
      * 添加一个时间戳变量来防止 Leo弹幕 按钮快速连续点击：
      */
-    public static long lastButtonClickTime = 0;// 在 DanmakuSpider 类中添加自动推送状态变量
-
-    public static boolean autoPushEnabled = false; // 自动推送状态，默认关闭
-    public static String danmakuStyle = "模板一"; // 弹幕UI风格，默认模板一
-
-    // 添加保存和加载自动推送状态的方法
-    private static void saveAutoPushState(Context context) {
-        try {
-            SharedPreferences prefs = context.getSharedPreferences("danmaku_prefs", Context.MODE_PRIVATE);
-            prefs.edit().putBoolean("auto_push_enabled", autoPushEnabled).apply();
-        } catch (Exception e) {
-            log("保存自动推送状态失败: " + e.getMessage());
-        }
-    }
-
-    private static void loadAutoPushState(Context context) {
-        try {
-            SharedPreferences prefs = context.getSharedPreferences("danmaku_prefs", Context.MODE_PRIVATE);
-            autoPushEnabled = prefs.getBoolean("auto_push_enabled", false);
-            log("加载自动推送状态: " + autoPushEnabled);
-        } catch (Exception e) {
-            log("加载自动推送状态失败: " + e.getMessage());
-        }
-    }
-
-    private static void saveDanmakuStyle(Context context) {
-        try {
-            SharedPreferences prefs = context.getSharedPreferences("danmaku_prefs", Context.MODE_PRIVATE);
-            prefs.edit().putString("danmaku_style", danmakuStyle).apply();
-        } catch (Exception e) {
-            log("保存弹幕UI风格失败: " + e.getMessage());
-        }
-    }
-
-    private static void loadDanmakuStyle(Context context) {
-        try {
-            SharedPreferences prefs = context.getSharedPreferences("danmaku_prefs", Context.MODE_PRIVATE);
-            danmakuStyle = prefs.getString("danmaku_style", "模板一");
-            log("加载弹幕UI风格: " + danmakuStyle);
-        } catch (Exception e) {
-            log("加载弹幕UI风格失败: " + e.getMessage());
-        }
-    }
-
+    public static long lastButtonClickTime = 0;
 
     @Override
     public void init(Context context, String extend) throws Exception {
@@ -106,33 +61,19 @@ public class DanmakuSpider extends Spider {
 
         // 初始化配置
         DanmakuConfig config = DanmakuConfigManager.loadConfig(context);
-        Set<String> loaded = config.getApiUrls();
-        if (loaded == null) {
-            loaded = new HashSet<>();
-        }
         if (!TextUtils.isEmpty(extend)) {
             if (extend.startsWith("http")) {
-                loaded.add(extend);
+                config.getApiUrls().add(extend);
             } else if (extend.startsWith("{") && extend.endsWith("}")) {
                 try {
                     JSONObject jsonObject = new JSONObject(extend);
-                    String apiUrl = jsonObject.getString("apiUrl");
-                    if (!TextUtils.isEmpty(apiUrl)) {
-                        loaded.add(apiUrl);
-                    }
-                    String autoPushEnabled = jsonObject.getString("autoPushEnabled");
-                    if (!TextUtils.isEmpty(autoPushEnabled)) {
-                        config.setAutoPushEnabled(Boolean.parseBoolean(autoPushEnabled));
-                        DanmakuSpider.autoPushEnabled = config.isAutoPushEnabled();
-                        log("自动推送状态已设置为: " + DanmakuSpider.autoPushEnabled);
-                    }
+                    config.updateFromJson(jsonObject);
                 } catch (Exception e) {
                     log("解析JSON格式配置失败: " + e.getMessage());
                 }
             }
         }
 
-        config.setApiUrls(loaded);
         DanmakuConfigManager.saveConfig(context, config);
 
         if (initialized) return;
@@ -143,21 +84,6 @@ public class DanmakuSpider extends Spider {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        // 加载自动推送状态
-        loadAutoPushState(context);
-        loadDanmakuStyle(context);
-
-        // 显示启动提示
-//        Activity act = Utils.getTopActivity();
-//        if (act != null) {
-//            Utils.safeRunOnUiThread(act, new Runnable() {
-//                @Override
-//                public void run() {
-//                    Utils.safeShowToast(act, "Leo弹幕加载成功");
-//                }
-//            });
-//        }
 
         log("Leo弹幕插件 v1.0 初始化完成");
         initialized = true;
@@ -236,6 +162,7 @@ public class DanmakuSpider extends Spider {
     @Override
     public String categoryContent(String tid, String pg, boolean filter, HashMap<String, String> extend) {
         try {
+            DanmakuConfig config = DanmakuConfigManager.getConfig(Objects.requireNonNull(Utils.getTopActivity()));
             JSONObject result = new JSONObject();
             JSONArray list = new JSONArray();
 
@@ -245,7 +172,7 @@ public class DanmakuSpider extends Spider {
 
             // 创建自动推送弹幕按钮（保持开启状态）
             JSONObject autoPushVod = createVod("auto_push", "自动推送弹幕", "",
-                    autoPushEnabled ? "已开启" : "已关闭");
+                    config.isAutoPushEnabled() ? "已开启" : "已关闭");
             list.put(autoPushVod);
 
             // 创建查看日志按钮
@@ -258,7 +185,7 @@ public class DanmakuSpider extends Spider {
 
             // 创建弹幕UI风格切换按钮
             JSONObject styleVod = createVod("danmaku_style", "弹幕UI风格", "",
-                    "当前: " + danmakuStyle);
+                    "当前: " + config.getDanmakuStyle());
             list.put(styleVod);
 
             result.put("list", list);
@@ -287,17 +214,18 @@ public class DanmakuSpider extends Spider {
                         @Override
                         public void run() {
                             try {
+                                DanmakuConfig config = DanmakuConfigManager.getConfig(ctx);
                                 if (id.equals("config")) {
                                     DanmakuUIHelper.showConfigDialog(ctx);
                                 } else if (id.equals("auto_push")) {
                                     // 切换自动推送状态
-                                    autoPushEnabled = !autoPushEnabled;
-                                    saveAutoPushState(ctx);
+                                    config.setAutoPushEnabled(!config.isAutoPushEnabled());
+                                    DanmakuConfigManager.saveConfig(ctx, config);
 
                                     // 更新UI显示
-                                    DanmakuSpider.log("自动推送状态切换: " + autoPushEnabled);
+                                    DanmakuSpider.log("自动推送状态切换: " + config.isAutoPushEnabled());
                                     Utils.safeShowToast(ctx,
-                                            autoPushEnabled ? "自动推送已开启" : "自动推送已关闭");
+                                            config.isAutoPushEnabled() ? "自动推送已开启" : "自动推送已关闭");
 
                                     // 重新加载页面以更新状态显示
                                     refreshCategoryContent(ctx);
@@ -307,16 +235,16 @@ public class DanmakuSpider extends Spider {
                                     DanmakuUIHelper.showLpConfigDialog(ctx);
                                 } else if (id.equals("danmaku_style")) {
                                     // 切换弹幕UI风格
-                                    if (danmakuStyle.equals("模板一")) {
-                                        danmakuStyle = "模板二";
+                                    if ("模板一".equals(config.getDanmakuStyle())) {
+                                        config.setDanmakuStyle("模板二");
                                     } else {
-                                        danmakuStyle = "模板一";
+                                        config.setDanmakuStyle("模板一");
                                     }
-                                    saveDanmakuStyle(ctx);
+                                    DanmakuConfigManager.saveConfig(ctx, config);
 
                                     // 更新UI显示
-                                    DanmakuSpider.log("弹幕UI风格切换: " + danmakuStyle);
-                                    Utils.safeShowToast(ctx, "弹幕UI风格已切换为: " + danmakuStyle);
+                                    DanmakuSpider.log("弹幕UI风格切换: " + config.getDanmakuStyle());
+                                    Utils.safeShowToast(ctx, "弹幕UI风格已切换为: " + config.getDanmakuStyle());
 
                                     // 重新加载页面以更新状态显示
                                     refreshCategoryContent(ctx);
@@ -333,6 +261,7 @@ public class DanmakuSpider extends Spider {
         }, 100); // 延迟100ms，确保Activity稳定
 
         try {
+            DanmakuConfig config = DanmakuConfigManager.getConfig(Objects.requireNonNull(Utils.getTopActivity()));
             JSONObject vod = new JSONObject();
             vod.put("vod_id", id);
             vod.put("vod_name", id.equals("auto_push") ? "自动推送弹幕" :
@@ -340,9 +269,9 @@ public class DanmakuSpider extends Spider {
                             id.equals("danmaku_style") ? "弹幕UI风格" : "Leo弹幕设置");
             vod.put("vod_pic", "");
             vod.put("vod_remarks", id.equals("auto_push") ?
-                    (autoPushEnabled ? "已开启" : "已关闭") :
+                    (config.isAutoPushEnabled() ? "已开启" : "已关闭") :
                     id.equals("log") ? "调试信息" : id.equals("lp_config") ? "调整弹窗大小和透明度" :
-                            id.equals("danmaku_style") ? "当前: " + danmakuStyle : "请稍候...");
+                            id.equals("danmaku_style") ? "当前: " + config.getDanmakuStyle() : "请稍候...");
             vod.put("vod_play_url", "");
             vod.put("vod_play_from", "");
             JSONObject result = new JSONObject();
@@ -362,14 +291,15 @@ public class DanmakuSpider extends Spider {
             if (!TextUtils.isEmpty(content)) {
                 JSONObject result = new JSONObject(content);
                 JSONArray list = result.getJSONArray("list");
+                DanmakuConfig config = DanmakuConfigManager.getConfig(ctx);
 
                 // 找到自动推送按钮并更新其remark
                 for (int i = 0; i < list.length(); i++) {
                     JSONObject item = list.getJSONObject(i);
                     if ("auto_push".equals(item.getString("vod_id"))) {
-                        item.put("vod_remarks", autoPushEnabled ? "已开启" : "已关闭");
+                        item.put("vod_remarks", config.isAutoPushEnabled() ? "已开启" : "已关闭");
                     } else if ("danmaku_style".equals(item.getString("vod_id"))) {
-                        item.put("vod_remarks", "当前: " + danmakuStyle);
+                        item.put("vod_remarks", "当前: " + config.getDanmakuStyle());
                     }
                 }
             }
