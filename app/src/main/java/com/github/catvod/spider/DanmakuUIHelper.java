@@ -556,7 +556,7 @@ public class DanmakuUIHelper {
                     titleLayout.setPadding(dpToPx(activity, 20), dpToPx(activity, 16), dpToPx(activity, 20), dpToPx(activity, 16));
 
                     TextView titleText = new TextView(activity);
-                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-19 15:14");
+                    titleText.setText("Leo弹幕日志 - 打包时间：2026-01-20 13:12");
                     titleText.setTextSize(20);
                     titleText.setTextColor(Color.WHITE);
                     titleText.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -1500,54 +1500,36 @@ public class DanmakuUIHelper {
         // 缩短文本显示，适合网格布局
         String displayText = DanmakuScanner.extractEpisodeNum(item.epTitle);
         if (TextUtils.isEmpty(displayText)) {
-            displayText = item.epTitle; // fallback to original
-        }
-
-
-        // 根据屏幕宽度动态计算列数，并相应调整文本长度
-        DisplayMetrics displayMetrics = activity.getResources().getDisplayMetrics();
-        int screenWidthDp = (int)(displayMetrics.widthPixels / displayMetrics.density);
-
-        int columns = 4; // 默认4列
-        if (screenWidthDp < 480) { // 小屏幕
-            columns = 3;
-        } else if (screenWidthDp > 720) { // 大屏幕
-            columns = 5;
-        }
-
-        // 根据列数动态调整文本长度
-        int maxLength = 20;
-        if (columns == 3) {
-            maxLength = 25; // 列数少，可以显示更长文本
-        } else if (columns == 5) {
-            maxLength = 15; // 列数多，需要更短文本
-        }
-
-        if (displayText.length() > maxLength) {
-            displayText = displayText.substring(0, maxLength) + "...";
+            // 安全地获取分割后的第二部分，避免数组越界
+            String[] parts = item.epTitle != null ? item.epTitle.split(" ") : new String[0];
+            if (parts.length > 1) {
+                displayText = parts[1];
+            } else if (parts.length > 0) {
+                displayText = parts[0]; // 如果只有一个部分，使用第一部分
+            } else {
+                displayText = item.epTitle != null ? item.epTitle : "未知"; // 如果没有分割部分，使用原字符串或默认值
+            }
         }
 
         resultItem.setText(displayText);
         resultItem.setTextSize(13); // 增大字号
 
-        // 设置内边距 - 允许多行文本显示
+        // 设置内边距
         int padding = dpToPx(activity, 10);
         resultItem.setPadding(padding, padding, padding, padding);
 
-        // 允许多行显示
-        resultItem.setMaxLines(2); // 最多显示2行
+        // 设置单行显示，超出部分...省略
+        resultItem.setSingleLine(true);
         resultItem.setEllipsize(TextUtils.TruncateAt.END);
-        resultItem.setSingleLine(false); // 允许多行显示
 
         // 设置文本居中
         resultItem.setGravity(Gravity.CENTER);
 
         // 安全设置工具提示（完整标题）- 仅在 API 26+ 可用
-        // 添加版本检查避免在低版本上崩溃
+        // 当按钮获得焦点或长按时，会显示完整的标题
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             resultItem.setTooltipText(item.getTitleWithEp());
         }
-        // 对于低版本，我们已经有长按显示完整标题的功能，所以不影响用户体验
 
         // 设置圆角背景 - 第三层级：绿色
         String currentDanmakuUrl = item.getDanmakuUrl();
@@ -1626,7 +1608,7 @@ public class DanmakuUIHelper {
             }
         });
 
-        // 长按显示完整标题 - 这个功能在所有版本上都可用
+        // 长按显示完整标题 - 这个功能在所有版本上都可用，作为低版本API的兼容
         resultItem.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
