@@ -353,8 +353,13 @@ public class LeoDanmakuService {
                                 double highestSimilarity = -1.0;
 
                                 for (DanmakuItem item : matchedItems) {
-                                    String titleToCompare = item.getAnimeTitle() != null ? item.getAnimeTitle() : item.getTitle();
+                                    String titleToCompare = item.getAnimeTitle() != null ? item.getAnimeTitle().split("【")[0] : item.getTitle();
                                     double similarity = calculateSimilarity(titleToCompare, episodeInfo.getEpisodeName());
+                                    // 如果动漫标题包含 "NaN"，则降低其相似度权重
+                                    if (item.getAnimeTitle() != null && item.getAnimeTitle().contains("NaN")) {
+                                        similarity -= 0.5; // 降低0.5的权重
+                                    }
+
                                     if (similarity > highestSimilarity) {
                                         highestSimilarity = similarity;
                                         bestMatch = item;
@@ -514,28 +519,22 @@ public class LeoDanmakuService {
             // 步骤1: 先获取弹幕数据，验证是否有效
             String danmakuData = null;
             int danmakuCount = 0;
-            int maxRetries = 3;
-            boolean dataValid = false;
+            final int maxRetries = 3;
 
             for (int attempt = 0; attempt < maxRetries; attempt++) {
                 try {
                     danmakuData = NetworkUtils.robustHttpGet(danmakuItem.getDanmakuUrl());
                     DanmakuSpider.log("获取弹幕数据 (尝试 " + (attempt + 1) + "/" + maxRetries + ") - URL: " + danmakuItem.getDanmakuUrl());
 
-                    if (!TextUtils.isEmpty(danmakuData) && danmakuData.toLowerCase().contains("<?xml")) {
-                        // 解析XML，获取弹幕总数
-                        danmakuCount = countDanmakuItems(danmakuData);
-                        if (danmakuCount > 0) {
-                            DanmakuSpider.log("✅ 获取到有效弹幕数据，总数: " + danmakuCount + " 条");
-                            dataValid = true;
-                            break;
-                        } else {
-                            DanmakuSpider.log("⚠️ 弹幕XML格式正确但无内容，尝试次数: " + (attempt + 1) + "/" + maxRetries);
-                        }
-                    } else if (!TextUtils.isEmpty(danmakuData)) {
-                        DanmakuSpider.log("⚠️ 获取到数据但不是XML格式，尝试次数: " + (attempt + 1) + "/" + maxRetries);
+                    // 直接尝试解析，如果成功（返回-1代表解析异常，0代表无内容，大于0代表成功）
+                    danmakuCount = countDanmakuItems(danmakuData);
+                    if (danmakuCount > 0) {
+                        DanmakuSpider.log("✅ 获取到有效弹幕数据，总数: " + danmakuCount + " 条");
+                        break; // 成功获取，跳出重试
+                    } else if (danmakuCount == 0) {
+                        DanmakuSpider.log("⚠️ 弹幕数据为空或无内容，尝试次数: " + (attempt + 1) + "/" + maxRetries);
                     } else {
-                        DanmakuSpider.log("⚠️ 获取弹幕数据为空，尝试次数: " + (attempt + 1) + "/" + maxRetries);
+                        DanmakuSpider.log("⚠️ 弹幕数据格式错误或解析失败，尝试次数: " + (attempt + 1) + "/" + maxRetries);
                     }
 
                     // 重试等待
@@ -559,8 +558,8 @@ public class LeoDanmakuService {
             }
 
             // 如果数据验证失败，直接返回
-            if (!dataValid) {
-                DanmakuSpider.log("❌ 无法获取有效的弹幕数据，取消推送");
+            if (danmakuCount <= 0) {
+                DanmakuSpider.log("❌ 无法获取有效的弹幕数据（或弹幕为空），取消推送");
                 if (activity != null && !activity.isFinishing()) {
                     activity.runOnUiThread(new Runnable() {
                         @Override
@@ -629,25 +628,17 @@ public class LeoDanmakuService {
     // 辅助方法：从XML中解析弹幕总数
     private static int countDanmakuItems(String xmlData) {
         try {
-            int count = 0;
-            // 统计<d>标签的出现次数（简单的XML弹幕格式通常为<d>...</d>）
-            int index = 0;
-            while ((index = xmlData.indexOf("<d ", index)) != -1) {
-                count++;
-                index++;
-            }
-            // 如果没找到带属性的<d，尝试简单<d>标签
-            if (count == 0) {
-                index = 0;
-                while ((index = xmlData.indexOf("<d>", index)) != -1) {
-                    count++;
-                    index += 3;
-                }
-            }
-            return count;
+            if (TextUtils.isEmpty(xmlData) || !xmlData.trim().startsWith("<")) return 0;
+
+            javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+            javax.xml.parsers.DocumentBuilder builder = factory.newDocumentBuilder();
+            org.xml.sax.InputSource is = new org.xml.sax.InputSource(new java.io.StringReader(xmlData));
+            org.w3c.dom.Document doc = builder.parse(is);
+
+            return doc.getElementsByTagName("d").getLength();
         } catch (Exception e) {
             DanmakuSpider.log("解析弹幕数据异常: " + e.getMessage());
-            return 0;
+            return -1; // 返回-1表示解析异常
         }
     }
 }
