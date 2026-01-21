@@ -615,7 +615,7 @@ public class DanmakuScanner {
 
         // 2. 中文格式：第XX集/话/章
         Pattern chinesePattern = Pattern.compile(
-                "第\\s*([零一二三四五六七八九十百千万0-9]+)\\s*[集话章节回]"
+                "第\\s*([零一二三四五六七八九十百千万0-9]+)\\s*[集话章节回期]"
         );
         matcher = chinesePattern.matcher(processedTitle);
         if (matcher.find()) {

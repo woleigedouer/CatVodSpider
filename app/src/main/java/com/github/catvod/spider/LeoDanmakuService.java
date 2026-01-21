@@ -324,10 +324,11 @@ public class LeoDanmakuService {
                                     String format1 = String.format("第%d集", epNum);
                                     String format2 = String.format("_%02d", epNum); // 补零格式，如 _01
                                     String format3 = String.format("_%d", epNum);   // 不补零格式，如 _1
+                                    String format4 = String.format("第%d期", epNum);
 
                                     if (!item.epTitle.contains(format1) &&
                                             !item.epTitle.contains(format2) &&
-                                            !item.epTitle.contains(format3)) {
+                                            !item.epTitle.contains(format3) && !item.epTitle.contains(format4)) {
                                         isMatch = false;
                                     }
                                 } catch (NumberFormatException e) {
