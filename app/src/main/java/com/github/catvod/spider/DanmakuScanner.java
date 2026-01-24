@@ -518,35 +518,62 @@ public class DanmakuScanner {
         }
 
         String oldTitle = title;
+        String cleanedTitle = title;
 
-        // 先处理括号部分 - 同时处理中文和英文括号
-        int bracketIndex = title.indexOf("（");
-        int englishBracketIndex = title.indexOf("(");
+        // 规则1: 如果有《》则提取其中的内容
+        if (cleanedTitle.contains("《") && cleanedTitle.contains("》")) {
+            int start = cleanedTitle.indexOf("《");
+            int end = cleanedTitle.indexOf("》");
+            if (start < end) {
+                cleanedTitle = cleanedTitle.substring(start + 1, end);
+            }
+        }
+        // 规则2: 如果有两个及其以上的|时，截取第一个|到第二个|之间的内容
+        else if (cleanedTitle.indexOf('|') != cleanedTitle.lastIndexOf('|')) {
+            int firstPipe = cleanedTitle.indexOf('|');
+            int secondPipe = cleanedTitle.indexOf('|', firstPipe + 1);
+            if (secondPipe != -1) {
+                cleanedTitle = cleanedTitle.substring(firstPipe + 1, secondPipe);
+            }
+        }
+        // 规则3: 如果按空格截取后的是单个英文字母
+        else if (cleanedTitle.contains(" ")) {
+            String[] parts = cleanedTitle.split(" ");
+            if (parts.length > 1 && parts[0].length() == 1 && parts[0].matches("[a-zA-Z]")) {
+                int firstSpace = cleanedTitle.indexOf(" ");
+                int secondSpace = cleanedTitle.indexOf(" ", firstSpace + 1);
+                if (secondSpace != -1) {
+                    cleanedTitle = cleanedTitle.substring(firstSpace + 1, secondSpace);
+                } else {
+                    cleanedTitle = cleanedTitle.substring(firstSpace + 1);
+                }
+            } else {
+                // 原有逻辑作为兜底
+                int spaceIndex = cleanedTitle.indexOf(" ");
+                if (spaceIndex != -1) {
+                    cleanedTitle = cleanedTitle.substring(0, spaceIndex);
+                }
+            }
+        }
 
-        // 找到最小的括号位置（最先出现的）
+        // 原有括号逻辑作为补充
+        int bracketIndex = cleanedTitle.indexOf("（");
+        int englishBracketIndex = cleanedTitle.indexOf("(");
         int minIndex = Integer.MAX_VALUE;
-        if (bracketIndex != -1) {
-            minIndex = Math.min(minIndex, bracketIndex);
-        }
-        if (englishBracketIndex != -1) {
-            minIndex = Math.min(minIndex, englishBracketIndex);
-        }
+        if (bracketIndex != -1) minIndex = Math.min(minIndex, bracketIndex);
+        if (englishBracketIndex != -1) minIndex = Math.min(minIndex, englishBracketIndex);
 
         if (minIndex != Integer.MAX_VALUE) {
-            title = title.substring(0, minIndex);
+            cleanedTitle = cleanedTitle.substring(0, minIndex);
         }
 
-        // 再处理空格部分
-        int spaceIndex = title.indexOf(" ");
-        if (spaceIndex != -1) {
-            title = title.substring(0, spaceIndex);
+        cleanedTitle = cleanedTitle.trim();
+
+        if (!cleanedTitle.equals(oldTitle)) {
+            DanmakuSpider.log("🧹 清理标题: " + oldTitle + " -> " + cleanedTitle);
         }
 
-        if (!title.equals(oldTitle)) {
-            DanmakuSpider.log("🧹 清理标题: " + oldTitle + " -> " + title);
-        }
-
-        return title;
+        return cleanedTitle;
     }
 
 
